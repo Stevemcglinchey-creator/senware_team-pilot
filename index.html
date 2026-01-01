@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SENware – Team Pilot</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#2E6F95">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #f5f7fa;
+      color: #333;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      color: #2E6F95;
+      margin-bottom: 5px;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+
+    video {
+      width: 100%;
+      border-radius: 10px;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 16px;
+      background: #2E6F95;
+      color: white;
+      border: none;
+      border-radius: 8px;
+    }
+
+    button:active {
+      opacity: 0.9;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: #777;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <h1>SENware</h1>
+    <p>Team Pilot – Internal Use</p>
+  </header>
+
+  <div class="card">
+    <h3>🎥 Quick Demo</h3>
+    <p>Tap play to hear the walkthrough.</p>
+
+    <video controls playsinline>
+      <source src="Team_Pilot.mp4" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+  </div>
+
+  <div class="card">
+    <h3>📢 Alerts</h3>
+    <p>Important updates for the team will appear here.</p>
+    <button disabled>Send Alert (Pilot)</button>
+  </div>
+
+  <div class="card">
+    <h3>📝 SNA Handover</h3>
+    <p>Quick notes for the next person coming in.</p>
+    <button disabled>Add Handover Note</button>
+  </div>
+
+  <div class="card">
+    <h3>💬 Feedback</h3>
+    <p>Tell us what works and what doesn’t.</p>
+    <button onclick="alert('Feedback link will be added here')">
+      Give Feedback
+    </button>
+  </div>
+
+  <footer>
+    SENware • Pilot Build • Not a live system
+  </footer>
+
+</body>
+</html>
