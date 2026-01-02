@@ -1,10 +1,10 @@
 {
-  "name": "SENwear",
-  "short_name": "SENwear",
-  "start_url": "./",
+  "name": "SENware Team Pilot",
+  "short_name": "SENware",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#1f6feb",
+  "theme_color": "#0A4D68",
   "icons": [
     {
       "src": "Icon-192.png",
@@ -18,3 +18,5 @@
     }
   ]
 }
+
+
