@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SENwear – Team Pilot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- PWA basics (icon will work later once cache clears) -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#4f7cff" />
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background: #4f7cff;
+      color: white;
+      padding: 14px;
+      text-align: center;
+      font-size: 18px;
+    }
+
+    main {
+      max-width: 600px;
+      margin: 20px auto;
+      padding: 16px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    label {
+      display: block;
+      margin-top: 10px;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    input, select, textarea, button {
+      width: 100%;
+      margin-top: 6px;
+      padding: 10px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    button {
+      background: #4f7cff;
+      color: white;
+      border: none;
+      margin-top: 14px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #3d68e0;
+    }
+
+    .note {
+      font-size: 12px;
+      color: #555;
+      margin-top: 8px;
+    }
+
+    .feed-item {
+      border-left: 4px solid #4f7cff;
+      padding-left: 10px;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+
+    .feed-meta {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+
+    footer {
+      text-align: center;
+      font-size: 12px;
+      color: #666;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  SENwear – Team Pilot (Internal)
+</header>
+
+<main>
+
+  <!-- INPUT CARD -->
+  <div class="card">
+    <label for="role">Role</label>
+    <select id="role">
+      <option>SNA</option>
+      <option>VP</option>
+      <option>Principal</option>
+    </select>
+
+    <label for="initials">Student Initials (if relevant)</label>
+    <input id="initials" placeholder="e.g. D.B" />
+
+    <label for="message">Update / Alert</label>
+    <textarea id="message" placeholder="e.g. Student having a difficult morning – go easy."></textarea>
+
+    <button onclick="sendUpdate()">Send Update</button>
+
+    <div class="note">
+      • Initials only • No names • No diagnoses<br>
+      • Pilot data is temporary and deleted at end of pilot
+    </div>
+  </div>
+
+  <!-- FEED -->
+  <div class="card">
+    <strong>Latest Updates</strong>
+    <div id="feed" style="margin-top: 12px;"></div>
+  </div>
+
+  <footer>
+    Private SENwear team pilot.<br>
+    Not a record-keeping system.
+  </footer>
+
+</main>
+
+<script>
+  function sendUpdate() {
+    const role = document.getElementById("role").value;
+    const initials = document.getElementById("initials").value.trim();
+    const message = document.getElementById("message").value.trim();
+
+    if (message === "") {
+      alert("Please enter an update.");
+      return;
+    }
+
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const feed = document.getElementById("feed");
+    const item = document.createElement("div");
+    item.className = "feed-item";
+
+    item.innerHTML = `
+      <div class="feed-meta">${role} • ${time}${initials ? " • " + initials : ""}</div>
+      <div>${message}</div>
+    `;
+
+    feed.prepend(item);
+
+    document.getElementById("initials").value = "";
+    document.getElementById("message").value = "";
+  }
+</script>
+
+</body>
+</html>
