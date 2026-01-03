@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SENware – Team Pilot</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#10b981">
+  <link rel="icon" type="image/png" sizes="192x192" href="./Icon-192.png">
+  <link rel="apple-touch-icon" href="./Icon-192.png">
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont;
+      background: #f3faf6;
+    }
+    .card {
+      background: #ffffff;
+      border-radius: 14px;
+      box-shadow: 0 4px 10px rgba(0,0,0,.05);
+    }
+  </style>
+</head>
+
+<body class="p-3">
+
+  <!-- HEADER -->
+  <div class="card p-4 text-center mb-4">
+    <img src="./Icon-192.png" alt="SENware Logo" class="mx-auto mb-2 w-20 h-20">
+    <h1 class="text-xl font-semibold text-emerald-700">SENware Team Pilot</h1>
+    <p class="text-sm text-slate-600 mt-1">
+      Internal pilot • SNA / SENCO / Leadership
+    </p>
+  </div>
+
+  <!-- VIDEO -->
+  <div class="card p-3 mb-4">
+    <p class="text-sm font-semibold mb-2 text-emerald-700">
+      ▶️ 30-second walkthrough
+    </p>
+    <video controls playsinline class="w-full rounded-lg">
+      <source src="./Team_Pilot.mp4" type="video/mp4">
+      Your browser does not support video.
+    </video>
+  </div>
+
+  <!-- ALERT FORM -->
+  <div class="card p-3 mb-4">
+    <p class="text-sm font-semibold mb-2 text-emerald-700">
+      Send Quick Alert
+    </p>
+
+    <select id="role" class="w-full border rounded-lg p-2 text-sm mb-2">
+      <option value="">Select role</option>
+      <option>SNA</option>
+      <option>Part-Time SNA</option>
+      <option>Sub</option>
+      <option>SENCO</option>
+      <option>VP</option>
+      <option>Principal</option>
+    </select>
+
+    <input id="initials"
+      class="w-full border rounded-lg p-2 text-sm mb-2"
+      placeholder="Student initials (e.g. D.B)" />
+
+    <input id="message"
+      class="w-full border rounded-lg p-2 text-sm mb-2"
+      placeholder="Message (e.g. not in until 11)" />
+
+    <button id="sendAlert"
+      class="w-full bg-emerald-600 text-white rounded-lg p-2 font-semibold">
+      Send Alert
+    </button>
+
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLScL5SkWYIoPDhybgEU8flLw9TCZSI2nh0217NCoNiKym_UAOg/viewform?usp=header"
+       target="_blank"
+       class="block text-center bg-emerald-100 text-emerald-700 rounded-lg p-2 mt-3 text-sm font-semibold">
+      Give Feedback (1 minute)
+    </a>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="text-center text-xs text-slate-400 py-2">
+    Demo pilot only • Student initials only • Data auto-deleted at pilot end
+  </div>
+
+  <!-- SCRIPT -->
+  <script>
+    document.getElementById("sendAlert").addEventListener("click", async () => {
+      const role = document.getElementById("role").value;
+      const initials = document.getElementById("initials").value.trim();
+      const message = document.getElementById("message").value.trim();
+
+      if (!role || !initials || !message) {
+        alert("Please complete all fields");
+        return;
+      }
+
+      try {
+        const res = await fetch(https://script.google.com/macros/s/AKfycbw4nf7LexEqlajV4J6PvOhfu5w-gwbnSOwQ3GAfCveeuuCRn6GLcm82hx4ckG_VLOAM/exec", {
+          method: "POST",
+          body: JSON.stringify({
+            role,
+            initials,
+            message,
+            source: "Team Pilot"
+          })
+        });
+
+        if (res.ok) {
+          alert("Alert sent");
+          document.getElementById("initials").value = "";
+          document.getElementById("message").value = "";
+        } else {
+          alert("Send failed");
+        }
+      } catch (e) {
+        alert("Connection error");
+      }
+    });
+  </script>
+
+</body>
+</html>
+
+
+
