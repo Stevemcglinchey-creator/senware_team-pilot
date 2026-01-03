@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SENware – Team Pilot</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+
+<style>
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont;
+    background: #f3faf6;
+  }
+  .card {
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 4px 10px rgba(0,0,0,.05);
+  }
+</style>
+</head>
+
+<body class="p-3">
+
+<!-- HEADER -->
+<div class="card p-4 text-center mb-4">
+  <img src="Icon-192.png" alt="SENware Logo" class="mx-auto mb-2 w-24 h-24"/>
+  <h1 class="text-xl font-semibold text-emerald-700">SENware – Team Pilot</h1>
+  <p class="text-sm text-slate-600 mt-1">
+    Internal pilot • SNAs, SENCO, VP & Principal
+  </p>
+</div>
+
+<!-- VIDEO -->
+<div class="card p-3 mb-4">
+  <p class="text-sm font-semibold mb-2 text-emerald-700">▶️ Quick Walkthrough</p>
+  <video controls class="w-full rounded-lg">
+    <source src="Team_Pilot.mp4" type="video/mp4">
+    Your browser does not support video.
+  </video>
+</div>
+
+<!-- ALERT FORM -->
+<div class="card p-3 mb-4">
+  <p class="text-sm font-semibold mb-2 text-emerald-700">Send Quick Alert</p>
+
+  <!-- ROLE -->
+  <select id="role" class="w-full border rounded-lg p-2 text-sm mb-2">
+    <option value="">Select your role</option>
+    <option>SNA</option>
+    <option>Part-Time SNA</option>
+    <option>Sub</option>
+    <option>SENCO</option>
+    <option>VP</option>
+    <option>Principal</option>
+  </select>
+
+  <!-- INITIALS -->
+  <input id="initials"
+    class="w-full border rounded-lg p-2 text-sm mb-2"
+    placeholder="Student initials (e.g. D.B)" />
+
+  <!-- MESSAGE -->
+  <input id="message"
+    class="w-full border rounded-lg p-2 text-sm mb-2"
+    placeholder="Short message (e.g. Absent this morning)" />
+
+  <!-- SEND -->
+  <button id="sendAlert"
+    class="w-full bg-emerald-600 text-white rounded-lg p-2 font-semibold">
+    Send Alert
+  </button>
+
+  <!-- FEEDBACK -->
+  <a
+    href="htthttps://docs.google.com/forms/d/1ArQ81u7ZAeH8T7hv5iYblhPe02SuFmMNHNhAwTH1bRM/edit?pli=1"
+    target="_blank"
+    class="block text-center bg-emerald-700 text-white rounded-lg p-3 font-semibold mt-3">
+    Give Feedback (1 minute)
+  </a>
+</div>
+
+<!-- FOOTER -->
+<div class="text-center text-xs text-slate-400 py-2">
+  Pilot only • Initials only • Data auto-deletes at pilot end
+</div>
+
+<!-- SCRIPT -->
+<script>
+document.getElementById("sendAlert").addEventListener("click", async () => {
+
+  const role = document.getElementById("role").value;
+  const initials = document.getElementById("initials").value.trim();
+  const message = document.getElementById("message").value.trim();
+
+  if (!role || !initials || !message) {
+    alert("Please complete all fields");
+    return;
+  }
+
+  try {
+    const response = await fetch(
+      "https://script.google.com/macros/s/AKfycbxPiv-kM0buwkT2iArthcCcx3BhYlWxKZ4tBAoxzZeLb8dFhu9jTpJbxSzW5cEC0w/exec",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: role,
+          initials: initials,
+          message: message,
+          source: "SENware Team Pilot"
+        })
+      }
+    );
+
+    if (response.ok) {
+      alert("Alert sent successfully");
+      document.getElementById("initials").value = "";
+      document.getElementById("message").value = "";
+    } else {
+      alert("Problem sending alert");
+    }
+
+  } catch (error) {
+    console.error(error);
+    alert("Connection error");
+  }
+});
+</script>
+
+</body>
+</html>
+
+
+
