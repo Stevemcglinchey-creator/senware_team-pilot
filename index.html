@@ -1,0 +1,135 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SENwear Team Pilot</title>
+
+<!-- Tailwind CDN for styling -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.6.0/firebase-firestore.js";
+
+  // const firebaseConfig = {
+  apiKey: "AIzaSyCBSUdvQvD0KR15Sq7flF9CmZ2LqmSMFxM",
+  authDomain: "senwear-team-pilot.firebaseapp.com",
+  projectId: "senwear-team-pilot",
+  storageBucket: "senwear-team-pilot.firebasestorage.app",
+  messagingSenderId: "2002144696",
+  appId: "1:2002144696:web:31f81e3c5c1764a290934d"
+};
+  
+
+  // Initialize Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Reference alerts collection
+  const alertsRef = collection(db, "alerts");
+
+  // Live listener for alerts
+  window.alertsLive = [];
+  onSnapshot(alertsRef, (snapshot) => {
+    snapshot.docChanges().forEach(change => {
+      const data = { id: change.doc.id, ...change.doc.data() };
+      if (change.type === "added") {
+        window.alertsLive.push(data);
+        renderAlerts();
+      }
+      if (change.type === "modified") {
+        const idx = window.alertsLive.findIndex(a => a.id===data.id);
+        if(idx>=0) window.alertsLive[idx]=data;
+        renderAlerts();
+      }
+    });
+  });
+
+  // Add alert function
+  window.sendAlert = async function(text, author) {
+    if(!text) return;
+    await addDoc(alertsRef, {
+      text,
+      author,
+      time: new Date().toLocaleTimeString(),
+      acknowledged: false
+    });
+  };
+
+  // Acknowledge alert
+  window.ackAlert = async function(id){
+    const d = doc(db, "alerts", id);
+    await updateDoc(d, { acknowledged:true });
+  };
+
+</script>
+
+<style>
+  body { font-family: Inter, system-ui; background:#eef8f2; margin:0; }
+  .card { background:white; border-radius:12px; box-shadow:0 6px 18px rgba(2,6,23,0.06); padding:16px; margin-bottom:16px; }
+  .muted { color:#59606a; }
+</style>
+</head>
+
+<body class="p-4">
+
+<!-- Demo Video -->
+<div class="card">
+  <h2 class="font-semibold mb-2">Intro Demo Video</h2>
+  <video id="demoVideo" width="100%" controls>
+    <source src="frame.mp4" type="video/mp4">
+    Your browser does not support HTML video.
+  </video>
+</div>
+
+<!-- Feedback button -->
+<div class="card flex justify-between items-center">
+  <h2 class="font-semibold">Feedback</h2>
+  <a href="https://forms.gle/YOUR_GOOGLE_FORM_LINK" target="_blank" class="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">Give Feedback</a>
+</div>
+
+<!-- Send alert -->
+<div class="card">
+  <h2 class="font-semibold mb-2">Send Alert</h2>
+  <textarea id="alertText" class="w-full p-2 border rounded mb-2" placeholder="Enter alert message"></textarea>
+  <input id="alertAuthor" class="w-full p-2 border rounded mb-2" placeholder="Your initials / role (e.g. SNA)" />
+  <button onclick="window.sendAlert(document.getElementById('alertText').value, document.getElementById('alertAuthor').value)" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Send Alert</button>
+</div>
+
+<!-- Live Alerts -->
+<div class="card">
+  <h2 class="font-semibold mb-2">Live Alerts</h2>
+  <div id="alertsContainer" class="space-y-2">
+    <!-- alerts render here -->
+  </div>
+</div>
+
+<script>
+  // Render alerts in container
+  function renderAlerts(){
+    const container = document.getElementById('alertsContainer');
+    container.innerHTML = '';
+    window.alertsLive.slice().reverse().forEach(a=>{
+      const el = document.createElement('div');
+      el.className = 'p-2 border rounded flex justify-between items-center';
+      el.innerHTML = `
+        <div>
+          <div><strong>${a.author}</strong> • <span class="muted">${a.time}</span></div>
+          <div>${a.text}</div>
+        </div>
+        <div>
+          ${a.acknowledged 
+            ? '<span class="px-2 py-1 bg-green-100 text-green-700 rounded">Acknowledged</span>'
+            : `<button onclick="window.ackAlert('${a.id}')" class="px-2 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500">Acknowledge</button>`}
+        </div>
+      `;
+      container.appendChild(el);
+    });
+  }
+</script>
+
+</body>
+</html>
