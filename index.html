@@ -1,0 +1,210 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SENwear – Team Pilot</title>
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont;
+      margin: 0;
+      background: #f4f6f8;
+      color: #111;
+    }
+
+    header {
+      background: #0f172a;
+      color: white;
+      padding: 16px;
+      text-align: center;
+    }
+
+    main {
+      padding: 16px;
+      max-width: 900px;
+      margin: auto;
+    }
+
+    section {
+      background: white;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-top: 10px;
+    }
+
+    select, input, textarea, button {
+      width: 100%;
+      margin-top: 6px;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 15px;
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      font-weight: 600;
+      margin-top: 12px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    .alert-card {
+      border-left: 5px solid #ef4444;
+      padding: 12px;
+      margin-top: 12px;
+      background: #fff5f5;
+      border-radius: 6px;
+    }
+
+    .meta {
+      font-size: 13px;
+      color: #555;
+      margin-bottom: 6px;
+    }
+
+    .ack-btn {
+      background: #16a34a;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      width: auto;
+      margin-top: 8px;
+    }
+
+    .ack-btn.acknowledged {
+      background: #9ca3af;
+      cursor: default;
+    }
+
+    video {
+      width: 100%;
+      border-radius: 8px;
+      margin-top: 8px;
+    }
+
+    .feedback-btn {
+      background: #f59e0b;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>SENwear – Team Pilot</h1>
+  <p>Live team awareness • school-safe • pilot mode</p>
+</header>
+
+<main>
+
+  <!-- VIDEO -->
+  <section>
+    <h2>Quick Walkthrough</h2>
+    <video controls>
+      <source src="Team_Pilot.mp4" type="video/mp4">
+      Your browser does not support video playback.
+    </video>
+  </section>
+
+  <!-- SEND ALERT -->
+  <section>
+    <h2>Send an Alert</h2>
+
+    <label>Role</label>
+    <select id="role">
+      <option>SNA</option>
+      <option>SENCO</option>
+      <option>Teacher</option>
+      <option>VP</option>
+      <option>Principal</option>
+    </select>
+
+    <label>Your Initials</label>
+    <input id="initials" placeholder="e.g. SM" />
+
+    <label>Alert Message</label>
+    <textarea id="message" rows="3" placeholder="What is happening right now?"></textarea>
+
+    <button onclick="sendAlert()">Send Alert</button>
+  </section>
+
+  <!-- LIVE FEED -->
+  <section>
+    <h2>Live Alerts</h2>
+    <div id="alerts"></div>
+  </section>
+
+  <!-- FEEDBACK -->
+  <section>
+    <h2>Feedback</h2>
+    <p>Help us improve this pilot.</p>
+    <a href="https://docs.google.com/forms/d/e/1FAIpQLScL5SkWYIoPDhybgEU8flLw9TCZSI2nh0217NCoNiKym_UAOg/viewform?usp=header" target="_blank">
+      <button class="feedback-btn">Give Feedback (1 min)</button>
+    </a>
+  </section>
+
+</main>
+
+<script>
+  const alertsDiv = document.getElementById("alerts");
+
+  function sendAlert() {
+    const role = document.getElementById("role").value;
+    const initials = document.getElementById("initials").value.trim();
+    const message = document.getElementById("message").value.trim();
+
+    if (!initials || !message) {
+      alert("Please enter initials and a message");
+      return;
+    }
+
+    const time = new Date().toLocaleTimeString();
+
+    const card = document.createElement("div");
+    card.className = "alert-card";
+
+    card.innerHTML = `
+      <div class="meta">${time} • ${role} • ${initials}</div>
+      <div>${message}</div>
+      <button class="ack-btn" onclick="acknowledge(this)">Acknowledge</button>
+    `;
+
+    alertsDiv.prepend(card);
+
+    document.getElementById("message").value = "";
+  }
+
+  function acknowledge(btn) {
+    btn.textContent = "Acknowledged ✓";
+    btn.classList.add("acknowledged");
+    btn.disabled = true;
+  }
+</script>
+
+</body>
+</html>
