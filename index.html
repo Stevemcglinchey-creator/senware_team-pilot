@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Senware — Full Interactive Demo</title>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- React UMD -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<style>
+  :root {
+    --bg: #eef8f2;
+    --card: #ffffff;
+    --accent: #2f7a53;
+    --muted: #59606a;
+  }
+  [data-theme="dark"] {
+    --bg: #0b1220;
+    --card: #0f1724;
+    --accent: #7dd3a6;
+    --muted: #94a3b8;
+    color: #e6eef2;
+  }
+  html, body { margin:0; height:100%; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:var(--bg); color:#0f1724; }
+  [data-theme="dark"] body { color:#e6eef2; }
+  .app { max-width:1200px; margin:18px auto; padding:16px; }
+  .card { background:var(--card); border-radius:12px; box-shadow:0 6px 18px rgba(2,6,23,0.06); }
+  .muted { color:var(--muted); }
+  .sticky-top { position: sticky; top:0; z-index:20; }
+  .pill { padding:4px 8px; border-radius:999px; font-weight:600; font-size:0.75rem; }
+  @media print { .no-print { display:none !important; } .card { box-shadow:none !important; border-radius:0 !important; } }
+</style>
+</head>
+
+<body data-theme="light">
+<div id="root" class="app"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+/* ---------------------------
+   DEMO DATA
+--------------------------- */
+const DEMO_STUDENTS = [
+  { id:'stu-001', name:"Sam O'Connor", year:"1st Year", sna:"Sarah O'Donnell", condition:"Diabetic", birthday:"2009-03-15", highRisk:"Monitor blood glucose", triggers:"Missed meds; change of routine", supports:"Assigned SNA; 1:1 reading", passport:"Carry glucose tablets", risk:"high" },
+  { id:'stu-002', name:"Ella Murphy", year:"2nd Year", sna:"Liam Harris", condition:"Anxiety", birthday:"2009-05-12", highRisk:"May freeze; needs calm entry", triggers:"Loud corridors; assemblies", supports:"Quiet entry; grounding", passport:"Allow early exit", risk:"med" },
+  { id:'stu-003', name:"Jack Nolan", year:"3rd Year", sna:"Maya O'Reilly", condition:"Behaviour Support", birthday:"2008-11-20", highRisk:"Verbal escalation", triggers:"Transitions; peer conflict", supports:"Behaviour plan; SNA escort", passport:"Safe-room access", risk:"high" }
+];
+
+const INITIAL_CHECKINS = [
+  { id:'c-1', studentId:'stu-001', type:'parent', text:"Parent: Forgot morning meds; will bring at 9:30", createdAt:new Date().toLocaleString(), author:'Parent' },
+  { id:'c-2', studentId:'stu-003', type:'behaviour', text:"Teacher: Aggressive incident in corridor", createdAt:new Date().toLocaleString(), author:'Teacher' }
+];
+
+const INITIAL_ALERTS = [
+  { id:'a-1', studentId:'stu-001', title:"Sam — Parent drop", message:"Parent: Forgot meds — dropping to school", time:new Date().toLocaleTimeString(), from:'Parent', to:['Assigned SNA','SENCO'], priority:'high' },
+  { id:'a-2', studentId:'stu-003', title:"Jack — Behaviour", message:"Aggressive incident — deputy notified", time:new Date().toLocaleTimeString(), from:'Teacher', to:['Behaviour Team','Deputy Principal'], priority:'med' }
+];
+
+const ROLES = ['SNA','Teacher','Deputy Principal','SENCO','Principal','Attendance Officer','Substitute'];
+const uid = (p='id')=> p+'-'+Math.random().toString(36).slice(2,9);
+
+function routeRecipientsForText(text){ const t=(text||'').toLowerCase(); const rec=new Set(); if(t.includes('med')||t.includes('inhaler')||t.includes('diabet')) rec.add('Assigned SNA'); if(t.includes('aggress')||t.includes('push')||t.includes('shout')) rec.add('Behaviour Team'); if(rec.size===0) rec.add('Assigned SNA'); return Array.from(rec); }
+function downloadCSV(filename, rows){ const csv = rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n'); const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv], {type:'text/csv'})); a.download=filename; a.click(); }
+
+/* ---------------------------
+   COMPONENTS
+--------------------------- */
+function TopBar({ role, setRole, theme, toggleTheme, openFeedback, openOnboarding }){
+  return (
+    <div className="flex items-center justify-between mb-4 no-print">
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 rounded bg-emerald-600 text-white flex items-center justify-center font-bold">SW</div>
+        <div>
+          <div className="text-xl font-semibold" style={{color:'var(--accent)'}}>Senware — Demo</div>
+          <div className="text-sm muted">Role-aware alerts • Substitute-ready • Handover generator</div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <select value={role} onChange={e=>setRole(e.target.value)} className="p-2 border rounded text-sm">
+          {ROLES.map(r=> <option key={r} value={r}>{r}</option>)}
+        </select>
+        <button onClick={toggleTheme} className="px-3 py-2 bg-white border rounded text-sm">{ theme==='light' ? 'Dark' : 'Light' }</button>
+        <button onClick={openFeedback} className="px-3 py-2 bg-red-500 text-white border rounded text-sm font-bold">Feedback</button>
+        <button onClick={openOnboarding} className="px-3 py-2 bg-emerald-600 text-white rounded text-sm">Walkthrough</button>
+      </div>
+    </div>
+  );
+}
+
+function App(){
+  const [students, setStudents] = useState(DEMO_STUDENTS);
+  const [checkins, setCheckins] = useState(INITIAL_CHECKINS);
+  const [alerts, setAlerts] = useState(INITIAL_ALERTS);
+  const [selectedStudentId, setSelectedStudentId] = useState(students[0].id);
+  const [role, setRole] = useState('SNA');
+  const [theme, setTheme] = useState('light');
+  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [showFeedback, setShowFeedback] = useState(false);
+
+  useEffect(()=>{ document.body.setAttribute('data-theme', theme); }, [theme]);
+  const selectedStudent = students.find(s=>s.id===selectedStudentId);
+
+  function openFeedback(){ setShowFeedback(true); }
+  function closeFeedback(){ setShowFeedback(false); }
+
+  return (
+    <div>
+      <TopBar role={role} setRole={setRole} theme={theme} toggleTheme={()=>setTheme(theme==='light'?'dark':'light')} openFeedback={openFeedback} openOnboarding={()=>setShowOnboarding(true)} />
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        {/* Sidebar */}
+        <div className="col-span-1 space-y-4">
+          <div className="card p-4">
+            <div className="font-semibold">QR Code</div>
+            <img src="frame.png" alt="Feedback QR" className="mt-2 w-32 h-32"/>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="col-span-1 lg:col-span-2 space-y-4">
+          <div className="card p-4">
+            <div className="font-semibold">Demo Video</div>
+            <video src="Team_Pilot.mp4" controls autoPlay muted className="w-full mt-2 rounded"></video>
+          </div>
+
+          <div className="card p-4">
+            <div className="font-semibold">Selected Student</div>
+            <div>{selectedStudent.name} — {selectedStudent.year} — {selectedStudent.sna}</div>
+            <div className="text-xs muted">Condition: {selectedStudent.condition} | High-risk: {selectedStudent.highRisk}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Feedback Modal */}
+      {showFeedback && 
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="card p-6 max-w-lg w-full">
+            <h2 className="text-xl font-semibold mb-2" style={{color:'var(--accent)'}}>Feedback</h2>
+            <p>Scan the QR code or open the Google Form link to submit feedback.</p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={closeFeedback} className="px-3 py-2 bg-emerald-600 text-white rounded">Close</button>
+            </div>
+          </div>
+        </div>
+      }
+
+      {/* Onboarding */}
+      {showOnboarding &&
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+          <div className="card p-6 max-w-lg w-full">
+            <h2 className="text-xl font-semibold" style={{color:'var(--accent)'}}>Quick Walkthrough</h2>
+            <ol className="mt-3 list-decimal pl-5 space-y-2">
+              <li>Select role to view alerts relevant to that role.</li>
+              <li>View student info, alerts, and handovers.</li>
+              <li>Click Feedback to open QR/Form for staff input.</li>
+            </ol>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={()=>setShowOnboarding(false)} className="px-3 py-2 bg-emerald-600 text-white rounded">Got it</button>
+            </div>
+          </div>
+        </div>
+      }
+
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
