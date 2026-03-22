@@ -1,36 +1,95 @@
-// firebase-messaging-sw.js
-importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
+// ============================================
+// PWA CACHING CODE - Makes app work offline
+// ============================================
+const CACHE_NAME = 'sendwear-v1';
+const urlsToCache = [
+  '/',
+  '/index.html',
+  '/manifest.json',
+  '/Icon-192.png',
+  '/Icon-512.png',
+  '/Team_Pilot.mp4'
+];
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAFFgp4m6fCssJiswmIMA6RLJ0cskUrAVk",
-  authDomain: "senwear-team-pilot.firebaseapp.com",
-  projectId: "senwear-team-pilot",
-  storageBucket: "senwear-team-pilot.firebasestorage.app",
-  messagingSenderId: "2002144696",
-  appId: "1:2002144696:web:31f81e3c5c1764a290934d"
-};
+// Install service worker and cache files
+self.addEventListener('install', event => {
+  console.log('Service Worker installing...');
+  event.waitUntil(
+    caches.open(CACHE_NAME)
+      .then(cache => {
+        console.log('Caching files...');
+        return cache.addAll(urlsToCache);
+      })
+      .catch(err => console.log('Cache error:', err))
+  );
+  self.skipWaiting();
+});
 
-firebase.initializeApp(firebaseConfig);
+// Activate and clean up old caches
+self.addEventListener('activate', event => {
+  console.log('Service Worker activated');
+  event.waitUntil(
+    caches.keys().then(cacheNames => {
+      return Promise.all(
+        cacheNames.map(cache => {
+          if (cache !== CACHE_NAME) {
+            console.log('Deleting old cache:', cache);
+            return caches.delete(cache);
+          }
+        })
+      );
+    })
+  );
+  return self.clients.claim();
+});
+
+// Serve cached files when offline
+self.addEventListener('fetch', event => {
+  event.respondWith(
+    caches.match(event.request)
+      .then(response => {
+        // Return cached version or fetch from network
+        return response || fetch(event.request);
+      })
+  );
+});
+
+// ============================================
+// FIREBASE NOTIFICATION CODE
+// ============================================
+importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js');
+
+// Initialize Firebase - REPLACE WITH YOUR ACTUAL CONFIG
+firebase.initializeApp({
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID"
+});
+
 const messaging = firebase.messaging();
 
-// Handle background messages (when app is closed)
-messaging.onBackgroundMessage((payload) => {
-  console.log('📱 Background message received:', payload);
+// Handle background messages (when app is not in focus)
+messaging.onBackgroundMessage(function(payload) {
+  console.log('Background message received:', payload);
   
-  const notificationTitle = payload.notification?.title || 'SENwear Alert';
+  const notificationTitle = payload.notification?.title || 'SENDwear';
   const notificationOptions = {
-    body: payload.notification?.body || 'New alert from SENwear',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    body: payload.notification?.body || 'New notification',
+    icon: '/Icon-192.png',
+    badge: '/Icon-192.png',
     vibrate: [200, 100, 200]
   };
   
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
-// Optional: handle notification click
-self.addEventListener('notificationclick', (event) => {
+// Handle notification click
+self.addEventListener('notificationclick', event => {
+  console.log('Notification clicked');
   event.notification.close();
   event.waitUntil(
     clients.openWindow('/')
