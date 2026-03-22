@@ -48,7 +48,6 @@ self.addEventListener('fetch', event => {
   event.respondWith(
     caches.match(event.request)
       .then(response => {
-        // Return cached version or fetch from network
         return response || fetch(event.request);
       })
   );
@@ -60,19 +59,19 @@ self.addEventListener('fetch', event => {
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js');
 
-// Initialize Firebase - REPLACE WITH YOUR ACTUAL CONFIG
+// Initialize Firebase with YOUR config
 firebase.initializeApp({
-  apiKey: "AIzaSyCBSUdvQvD0KR15Sq7flF9CmZ2LqmSMFxM",
+  apiKey: "AIzaSyCBSUdvQvD0KR15Sq7fLF9CmZ2LqmSMFxm",
   authDomain: "senwear-team-pilot.firebaseapp.com",
   projectId: "senwear-team-pilot",
   storageBucket: "senwear-team-pilot.firebasestorage.app",
-  messagingSenderId: "2002144696",
-  appId: "1:2002144696:web:31f81e3c5c1764a290934d"
+  messagingSenderId: "20021144696",
+  appId: "1:20021144696:web:31f81e3c5c1764a290934d"
 });
 
 const messaging = firebase.messaging();
 
-// Handle background messages (when app is not in focus)
+// Handle background messages
 messaging.onBackgroundMessage(function(payload) {
   console.log('Background message received:', payload);
   
