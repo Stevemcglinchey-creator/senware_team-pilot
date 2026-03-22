@@ -636,7 +636,7 @@
           // Get FCM token
           try {
             const token = await getToken(messaging, {
-              vapidKey: "BKeVxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx" // REPLACE WITH YOUR VAPID KEY
+              vapidKey: "BHHEkcdII53eQ2T8PkNe8ll7x21HfYUSqqadcrT4AdIi9h3HQL-5T3RUJjZwIMpantCdS4ewJOVpxGaDok8-qIk" // REPLACE WITH YOUR VAPID KEY
             });
             
             if (token) {
@@ -675,7 +675,7 @@
         // Try to get existing token
         try {
           const token = await getToken(messaging, {
-            vapidKey: "BKeVxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx" // REPLACE WITH YOUR VAPID KEY
+            vapidKey: "BHHEkcdII53eQ2T8PkNe8ll7x21HfYUSqqadcrT4AdIi9h3HQL-5T3RUJjZwIMpantCdS4ewJOVpxGaDok8-qIk" // REPLACE WITH YOUR VAPID KEY
           });
           if (token) {
             addLog(`✅ Existing FCM Token: ${token.substring(0, 30)}...`);
