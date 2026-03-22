@@ -1,8 +1,9 @@
-// Import Firebase
+// ============================================
+// FIREBASE NOTIFICATIONS ONLY
+// ============================================
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js');
 
-// Your Firebase config
 firebase.initializeApp({
   apiKey: "AIzaSyCBSUdvQvD0KR15Sq7fLF9CmZ2LqmSMFxm",
   authDomain: "senwear-team-pilot.firebaseapp.com",
@@ -14,7 +15,6 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Handle background messages
 messaging.onBackgroundMessage(function(payload) {
   console.log('Background message received:', payload);
   
