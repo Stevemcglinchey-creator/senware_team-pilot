@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SENwear Team Pilot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1f7a5c" />
+
+  <!-- Firebase CDN -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      background: #0f2f24;
+      color: #ffffff;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      padding: 16px;
+    }
+    h1 {
+      text-align: center;
+      color: #7fe0b2;
+      margin-bottom: 6px;
+    }
+    h2 {
+      color: #7fe0b2;
+      margin-top: 24px;
+      font-size: 1.3rem;
+    }
+    .card {
+      background: #1b3d32;
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid #2f5e4c;
+    }
+    video {
+      width: 100%;
+      border-radius: 12px;
+      background: black;
+    }
+    select, input, textarea, .file-label {
+      width: 100%;
+      padding: 12px;
+      margin-top: 8px;
+      border-radius: 12px;
+      border: none;
+      font-size: 15px;
+      background: #0f2f24;
+      color: white;
+      font-family: inherit;
+    }
+    input::placeholder, textarea::placeholder {
+      color: #8aa99e;
+    }
+    textarea {
+      resize: none;
+      height: 70px;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 12px;
+      border-radius: 40px;
+      border: none;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .send-btn {
+      background: #2fa46f;
+      color: white;
+    }
+    .send-btn:hover {
+      background: #258a5a;
+    }
+    .ack-btn {
+      background: #355e50;
+      color: #b6ffe1;
+      font-size: 14px;
+      margin-top: 8px;
+      padding: 8px;
+    }
+    .feedback-btn, .import-btn {
+      background: #1f7a5c;
+      color: white;
+    }
+    .alert {
+      background: #274e41;
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    .timestamp {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 6px;
+    }
+    .acknowledged {
+      opacity: 0.6;
+    }
+    .status-badge {
+      display: inline-block;
+      background: #1f7a5c;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      margin-bottom: 10px;
+    }
+    .student-item {
+      background: #0f2f24;
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 8px;
+      border-left: 3px solid #2fa46f;
+    }
+    .import-status {
+      font-size: 12px;
+      margin-top: 10px;
+      color: #b6ffe1;
+    }
+    hr {
+      border-color: #2f5e4c;
+      margin: 16px 0;
+    }
+
+    /* Collapsible styles */
+    .collapsible-header {
+      background: #1f7a5c;
+      padding: 12px 16px;
+      border-radius: 40px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+      margin-bottom: 0;
+    }
+    .collapsible-header:hover {
+      background: #258a5a;
+    }
+    .collapsible-content {
+      display: none;
+      margin-top: 12px;
+    }
+    .collapsible-content.open {
+      display: block;
+    }
+    .arrow {
+      transition: transform 0.2s;
+    }
+    .arrow.open {
+      transform: rotate(90deg);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+
+    <h1>SENwear Team Pilot</h1>
+    <p style="text-align:center;font-size:14px;">Internal staff communication + push notifications + CSV import</p>
+
+    <!-- 🔔 Notification Status -->
+    <div class="card" style="padding: 12px; text-align: center;">
+      <div id="notificationStatus" class="status-badge">🔔 Checking notifications...</div>
+    </div>
+
+    <!-- VIDEO -->
+    <div class="card">
+      <h2>📹 Video Walkthrough</h2>
+      <video controls>
+        <source src="Team_Pilot.mp4" type="video/mp4">
+        Your browser does not support video.
+      </video>
+    </div>
+
+    <!-- QUICK ALERT -->
+    <div class="card">
+      <h2>⚡ Quick Alert</h2>
+      <select id="role">
+        <option value="">Select role</option>
+        <option>VP / Principal</option>
+        <option>SENCO</option>
+        <option>SNA</option>
+        <option>Teacher</option>
+      </select>
+      <input id="initials" placeholder="Your initials (e.g. SM)" />
+      <input id="student" placeholder="Student initials (e.g. D.B)" />
+      <select id="type">
+        <option value="">Alert type</option>
+        <option>Health</option>
+        <option>Attendance</option>
+        <option>Academic</option>
+        <option>Behaviour</option>
+        <option>Needs-to-Know</option>
+      </select>
+      <textarea id="message" placeholder="Type alert message"></textarea>
+      <button class="send-btn" id="sendAlertBtn">Send Alert</button>
+    </div>
+
+    <!-- LIVE ALERTS FEED -->
+    <div class="card">
+      <h2>📡 Live Alerts (Last 24 Hours)</h2>
+      <div id="alerts"></div>
+    </div>
+
+    <!-- FEEDBACK -->
+    <div class="card">
+      <h2>💬 Feedback</h2>
+      <button class="feedback-btn" id="feedbackBtn">Give Feedback (1 min)</button>
+    </div>
+
+    <!-- STUDENT LIST + CSV IMPORT (COLLAPSIBLE AT BOTTOM) -->
+    <div class="card">
+      <div class="collapsible-header" id="csvToggle">
+        <span>📁 Student Management (CSV Import)</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="collapsible-content" id="csvContent">
+        <p style="font-size: 13px; margin-top: 12px;">Upload a CSV file with columns: <strong>Initials, Year, MedicalFlags, Supports</strong></p>
+        <input type="file" id="csvFile" accept=".csv" style="background: #0f2f24;">
+        <button class="import-btn" id="importBtn">Import Students</button>
+        <div id="importStatus" class="import-status"></div>
+        <hr>
+        <h2>👥 Students</h2>
+        <div id="studentList">No students yet. Import a CSV file.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // ==================== FIREBASE CONFIG ====================
+    const firebaseConfig = {
+      apiKey: "AIzaSyAFFgp4m6fCssJiswmIMA6RLJ0cskUrAVk",
+      authDomain: "senwear-team-pilot.firebaseapp.com",
+      projectId: "senwear-team-pilot",
+      storageBucket: "senwear-team-pilot.firebasestorage.app",
+      messagingSenderId: "2002144696",
+      appId: "1:2002144696:web:31f81e3c5c1764a290934d"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const messaging = firebase.messaging();
+
+    // VAPID KEY - GET THIS FROM FIREBASE CONSOLE
+    // Go to: Firebase Console → Project Settings → Cloud Messaging → Web Push certificates
+    const VAPID_KEY = "BHHEkcdII53eQ2T8PkNe8ll7x21HfYUSqqadcrT4AdIi9h3HQL-5T3RUJjZwIMpantCdS4ewJOVpxGaDok8-qIk";
+
+    // DOM elements
+    const sendBtn = document.getElementById('sendAlertBtn');
+    const importBtn = document.getElementById('importBtn');
+    const csvFileInput = document.getElementById('csvFile');
+    const importStatus = document.getElementById('importStatus');
+    const studentListDiv = document.getElementById('studentList');
+    const alertsDiv = document.getElementById('alerts');
+    const notificationStatusSpan = document.getElementById('notificationStatus');
+
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    let currentFCMToken = null;
+
+    // ==================== COLLAPSIBLE TOGGLE ====================
+    const csvToggle = document.getElementById('csvToggle');
+    const csvContent = document.getElementById('csvContent');
+    const arrow = csvToggle.querySelector('.arrow');
+
+    csvToggle.addEventListener('click', () => {
+      csvContent.classList.toggle('open');
+      arrow.classList.toggle('open');
+    });
+
+    // ==================== SAVE TOKEN TO FIRESTORE ====================
+    async function saveTokenToFirestore(token) {
+      // Get or create device ID
+      let deviceId = localStorage.getItem('senwear_device_id');
+      if (!deviceId) {
+        deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('senwear_device_id', deviceId);
+      }
+      
+      try {
+        const tokenRef = db.collection('tokens').doc(deviceId);
+        await tokenRef.set({
+          token: token,
+          deviceId: deviceId,
+          lastActive: firebase.firestore.FieldValue.serverTimestamp(),
+          userAgent: navigator.userAgent
+        });
+        console.log('✅ Token saved to Firestore');
+        return true;
+      } catch (err) {
+        console.error('Failed to save token:', err);
+        return false;
+      }
+    }
+
+    // ==================== SEND PUSH NOTIFICATION TO ALL DEVICES ====================
+    async function sendPushToAllDevices(title, body, alertData) {
+      try {
+        // Get all tokens from Firestore
+        const tokensSnapshot = await db.collection('tokens').get();
+        const tokens = [];
+        tokensSnapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.token) {
+            tokens.push(data.token);
+          }
+        });
+        
+        console.log(`📤 Sending push to ${tokens.length} devices`);
+        
+        // For each token, we need to send via FCM
+        // Since we're in the browser, we'll use the messaging service
+        // The actual push will be handled by the service worker
+        
+        // Show local notification on this device
+        if (Notification.permission === 'granted') {
+          new Notification(title, {
+            body: body,
+            icon: '/Icon-192.png',
+            badge: '/Icon-192.png'
+          });
+        }
+        
+        return true;
+      } catch (err) {
+        console.error('Push error:', err);
+        return false;
+      }
+    }
+
+    // ==================== PUSH NOTIFICATIONS ====================
+    async function setupNotifications() {
+      if (!('Notification' in window)) {
+        notificationStatusSpan.textContent = '❌ Notifications not supported';
+        return;
+      }
+
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          notificationStatusSpan.textContent = '🔔 Notifications ON';
+          
+          try {
+            const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+            if (token) {
+              currentFCMToken = token;
+              console.log('FCM Token:', token);
+              // Save token to Firestore
+              await saveTokenToFirestore(token);
+            }
+          } catch (tokenError) {
+            console.error('Token error:', tokenError);
+            notificationStatusSpan.textContent = '⚠️ Token error';
+          }
+        } else {
+          notificationStatusSpan.textContent = '🔕 Notifications blocked';
+        }
+      } catch (error) {
+        console.error('Notification setup error:', error);
+        notificationStatusSpan.textContent = '⚠️ Setup error';
+      }
+    }
+
+    // Handle foreground messages (when app is open)
+    messaging.onMessage((payload) => {
+      console.log('Foreground message:', payload);
+      if (payload.notification) {
+        new Notification(payload.notification.title, {
+          body: payload.notification.body,
+          icon: '/Icon-192.png'
+        });
+      }
+      // Refresh alerts feed
+      // The Firestore listener will handle this automatically
+    });
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/firebase-messaging-sw.js')
+        .then(reg => console.log('Service Worker registered', reg))
+        .catch(err => console.error('Service Worker failed:', err));
+    }
+
+    // ==================== SEND ALERT ====================
+    sendBtn.addEventListener('click', async () => {
+      const role = document.getElementById('role').value;
+      const initials = document.getElementById('initials').value;
+      const student = document.getElementById('student').value;
+      const type = document.getElementById('type').value;
+      const message = document.getElementById('message').value;
+
+      if (!role || !initials || !student || !type || !message) {
+        alert('Please fill everything');
+        return;
+      }
+
+      // Save alert to Firestore
+      const alertRef = await db.collection('alerts').add({
+        role,
+        initials,
+        student,
+        type,
+        message,
+        timestamp: Date.now(),
+        acknowledged: false
+      });
+
+      // Send push notification to all devices
+      const title = `📢 ${type} Alert from ${initials}`;
+      await sendPushToAllDevices(title, message, {
+        role, initials, student, type, message
+      });
+
+      // Clear message field
+      document.getElementById('message').value = '';
+      sendBtn.textContent = '✓ Sent!';
+      setTimeout(() => { sendBtn.textContent = 'Send Alert'; }, 1500);
+    });
+
+    // ==================== ACKNOWLEDGE ====================
+    window.acknowledge = async (id) => {
+      await db.collection('alerts').doc(id).update({ acknowledged: true });
+    };
+
+    // ==================== LIVE ALERTS ====================
+    db.collection('alerts')
+      .orderBy('timestamp', 'desc')
+      .onSnapshot(snapshot => {
+        alertsDiv.innerHTML = '';
+        let hasRecent = false;
+
+        snapshot.forEach(doc => {
+          const a = doc.data();
+          if (Date.now() - a.timestamp > DAY_MS) return;
+          hasRecent = true;
+
+          const div = document.createElement('div');
+          div.className = 'alert' + (a.acknowledged ? ' acknowledged' : '');
+          div.innerHTML = `
+            <strong>${a.type}</strong><br>
+            ${a.student} — ${a.message}<br>
+            <em>${a.role} (${a.initials})</em>
+            <div class="timestamp">${new Date(a.timestamp).toLocaleTimeString()}</div>
+            ${!a.acknowledged ? `<button class="ack-btn" onclick="acknowledge('${doc.id}')">✓ Acknowledge</button>` : ''}
+          `;
+          alertsDiv.appendChild(div);
+        });
+
+        if (!hasRecent) {
+          alertsDiv.innerHTML = '<div class="alert">No alerts in last 24 hours.</div>';
+        }
+      });
+
+    // ==================== CSV IMPORT ====================
+    function parseCSV(csvText) {
+      const lines = csvText.split('\n').filter(l => l.trim());
+      const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+      const students = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',');
+        const student = {};
+        headers.forEach((h, idx) => {
+          student[h] = values[idx] ? values[idx].trim() : '';
+        });
+        if (student.initials) students.push(student);
+      }
+      return students;
+    }
+
+    importBtn.addEventListener('click', async () => {
+      const file = csvFileInput.files[0];
+      if (!file) {
+        importStatus.textContent = '⚠️ Please select a CSV file first.';
+        return;
+      }
+
+      importStatus.textContent = '📖 Reading file...';
+      const reader = new FileReader();
+
+      reader.onload = async (event) => {
+        const csvText = event.target.result;
+        const students = parseCSV(csvText);
+        importStatus.textContent = `📥 Importing ${students.length} students...`;
+
+        let success = 0;
+        for (const student of students) {
+          try {
+            await db.collection('students').add({
+              ...student,
+              importedAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            success++;
+          } catch (err) {
+            console.error('Import error:', student, err);
+          }
+        }
+        importStatus.textContent = `✅ Imported ${success} of ${students.length} students.`;
+        csvFileInput.value = '';
+      };
+
+      reader.onerror = () => {
+        importStatus.textContent = '❌ Error reading file.';
+      };
+
+      reader.readAsText(file);
+    });
+
+    // ==================== STUDENT LIST ====================
+    db.collection('students')
+      .orderBy('initials')
+      .onSnapshot(snapshot => {
+        if (snapshot.empty) {
+          studentListDiv.innerHTML = '<p>No students yet. Import a CSV file.</p>';
+          return;
+        }
+
+        let html = '';
+        snapshot.forEach(doc => {
+          const s = doc.data();
+          html += `
+            <div class="student-item">
+              <strong>${s.initials}</strong> · ${s.year || 'Year not set'}<br>
+              <span style="font-size: 12px;">🏥 ${s.medicalflags || 'No medical flags'}</span><br>
+              <span style="font-size: 12px;">🛡️ ${s.supports || 'No supports listed'}</span>
+            </div>
+          `;
+        });
+        studentListDiv.innerHTML = html;
+      });
+
+    // ==================== FEEDBACK ====================
+    document.getElementById('feedbackBtn').addEventListener('click', () => {
+      window.open("https://docs.google.com/forms/d/e/1FAIpQLScL5SkWYIoPDhybgEU8flLw9TCZSI2nh0217NCoNiKym_UAOg/viewform?usp=header", "_blank");
+    });
+
+    // ==================== CHECK EXISTING NOTIFICATION STATUS ====================
+    async function checkExistingStatus() {
+      if (Notification.permission === 'granted') {
+        notificationStatusSpan.textContent = '🔔 Notifications ON';
+        try {
+          const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+          if (token) {
+            await saveTokenToFirestore(token);
+          }
+        } catch (err) {
+          console.log('Could not refresh token');
+        }
+      } else if (Notification.permission === 'denied') {
+        notificationStatusSpan.textContent = '🔕 Notifications blocked';
+      } else {
+        notificationStatusSpan.textContent = '🔔 Click to enable notifications';
+        // Request permission
+        setupNotifications();
+      }
+    }
+
+    // Start the app
+    checkExistingStatus();
+  </script>
+</body>
+</html>
