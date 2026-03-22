@@ -1,0 +1,221 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="/manifest.json">
+  <title>Senwear Team Pilot</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f0f2f5; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    h1 { color: #0066cc; margin-bottom: 10px; }
+    button { background: #0066cc; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%; margin-top: 10px; }
+    .alert-btn { background: #dc3545; }
+    input, textarea, select { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #ddd; border-radius: 6px; }
+    .status { padding: 12px; border-radius: 8px; margin: 10px 0; }
+    .status-on { background: #d4edda; color: #155724; }
+    .status-off { background: #f8d7da; color: #721c24; }
+    .log { background: #1e1e1e; color: #0f0; font-family: monospace; font-size: 12px; padding: 12px; border-radius: 8px; max-height: 200px; overflow-y: auto; }
+    .message-item { padding: 12px; border-bottom: 1px solid #eee; }
+    .message-item strong { color: #0066cc; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>📡 Senwear Team Pilot</h1>
+      <div id="status" class="status status-off">🔔 Notifications disabled</div>
+      <button id="enableBtn">Enable Notifications</button>
+    </div>
+
+    <div class="card">
+      <h3>📢 Send Alert</h3>
+      <input type="text" id="initials" placeholder="Your initials (e.g., SMG)">
+      <input type="text" id="role" placeholder="Role (optional)">
+      <input type="text" id="student" placeholder="Student (optional)">
+      <select id="type">
+        <option value="Needs-to-Know">Needs-to-Know</option>
+        <option value="Emergency">Emergency</option>
+        <option value="Update">Update</option>
+      </select>
+      <textarea id="message" rows="3" placeholder="Type your message..."></textarea>
+      <button id="sendBtn" class="alert-btn">Send Alert to Team</button>
+    </div>
+
+    <div class="card">
+      <h3>📨 Recent Alerts</h3>
+      <div id="alerts">Loading...</div>
+    </div>
+
+    <div class="card">
+      <h3>📋 Debug Log</h3>
+      <div id="log" class="log">▶️ App starting...</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+    import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-messaging.js";
+    import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, doc, setDoc } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCBSUdvQvD0KR15Sq7fLF9CmZ2LqmSMFxm",
+      authDomain: "senwear-team-pilot.firebaseapp.com",
+      projectId: "senwear-team-pilot",
+      storageBucket: "senwear-team-pilot.firebasestorage.app",
+      messagingSenderId: "20021144696",
+      appId: "1:20021144696:web:31f81e3c5c1764a290934d"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const messaging = getMessaging(app);
+    const db = getFirestore(app);
+
+    function addLog(msg) {
+      const logDiv = document.getElementById('log');
+      const p = document.createElement('p');
+      p.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logDiv.appendChild(p);
+      logDiv.scrollTop = logDiv.scrollHeight;
+      console.log(msg);
+    }
+
+    // Load alerts in real-time
+    const alertsQuery = query(collection(db, 'alerts'), orderBy('timestamp', 'desc'));
+    onSnapshot(alertsQuery, (snapshot) => {
+      const alertsDiv = document.getElementById('alerts');
+      if (snapshot.empty) {
+        alertsDiv.innerHTML = '<p>No alerts yet</p>';
+        return;
+      }
+      let html = '';
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const date = data.timestamp ? new Date(data.timestamp).toLocaleString() : 'Just now';
+        html += `
+          <div class="message-item">
+            <strong>${escapeHtml(data.initials || '?')}</strong>
+            <p>${escapeHtml(data.message || '')}</p>
+            <small>${date} • ${escapeHtml(data.type || 'Alert')}</small>
+          </div>
+        `;
+      });
+      alertsDiv.innerHTML = html;
+    }, (err) => {
+      addLog('Error loading alerts: ' + err.message);
+    });
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Save token
+    async function saveToken(token) {
+      const deviceId = localStorage.getItem('device_id');
+      if (!deviceId) {
+        localStorage.setItem('device_id', 'device_' + Date.now());
+      }
+      const id = localStorage.getItem('device_id');
+      await setDoc(doc(db, 'tokens', id), { 
+        token: token, 
+        lastActive: new Date().toISOString() 
+      });
+      addLog('Token saved');
+    }
+
+    // Enable notifications
+    async function enableNotifications() {
+      addLog('Requesting permission...');
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          addLog('Permission granted');
+          const token = await getToken(messaging);
+          if (token) {
+            await saveToken(token);
+            document.getElementById('status').innerHTML = '✅ Notifications ON';
+            document.getElementById('status').className = 'status status-on';
+            addLog('Notifications enabled');
+          }
+        } else {
+          addLog('Permission denied');
+        }
+      } catch (err) {
+        addLog('Error: ' + err.message);
+      }
+    }
+
+    // Send alert
+    async function sendAlert() {
+      const initials = document.getElementById('initials').value.trim();
+      const message = document.getElementById('message').value.trim();
+      
+      if (!initials || !message) {
+        alert('Please enter initials and message');
+        return;
+      }
+
+      addLog('Sending alert...');
+      
+      try {
+        await addDoc(collection(db, 'alerts'), {
+          acknowledged: false,
+          initials: initials.toUpperCase(),
+          message: message,
+          role: document.getElementById('role').value || '',
+          student: document.getElementById('student').value || 'All',
+          timestamp: Date.now(),
+          type: document.getElementById('type').value
+        });
+        
+        // Show notification on this device
+        new Notification('Alert Sent', { 
+          body: message,
+          icon: '/Icon-192.png'
+        });
+        
+        document.getElementById('initials').value = '';
+        document.getElementById('message').value = '';
+        addLog('Alert sent successfully');
+      } catch (err) {
+        addLog('Error sending: ' + err.message);
+        alert('Error: ' + err.message);
+      }
+    }
+
+    // Handle incoming messages
+    onMessage(messaging, (payload) => {
+      addLog('Message received');
+      new Notification(payload.notification?.title || 'Alert', {
+        body: payload.notification?.body || 'New message',
+        icon: '/Icon-192.png'
+      });
+    });
+
+    // Check initial status
+    if (Notification.permission === 'granted') {
+      document.getElementById('status').innerHTML = '✅ Notifications ON';
+      document.getElementById('status').className = 'status status-on';
+    }
+
+    // Set up buttons
+    document.getElementById('enableBtn').onclick = enableNotifications;
+    document.getElementById('sendBtn').onclick = sendAlert;
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(() => addLog('Service Worker registered'))
+        .catch(err => addLog('SW failed: ' + err.message));
+    }
+
+    addLog('App ready');
+  </script>
+</body>
+</html>
