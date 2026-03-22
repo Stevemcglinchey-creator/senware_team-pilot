@@ -1,44 +1,1801 @@
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
-  import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-messaging.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyCBSUdvQvD0KR15Sq7fLF9CmZ2LqmSMFxm",
-    authDomain: "senwear-team-pilot.firebaseapp.com",
-    projectId: "senwear-team-pilot",
-    storageBucket: "senwear-team-pilot.firebasestorage.app",
-    messagingSenderId: "20021144696",
-    appId: "1:20021144696:web:31f81e3c5c1764a290934d"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const messaging = getMessaging(app);
-
-  // Request permission and get token
-  async function requestNotificationPermission() {
-    try {
-      const token = await getToken(messaging, {
-        vapidKey: "BHHEkcdII53eQ2T8PkNe8ll7x21HfYUSqqadcrT4AdIi9h3HQL-5T3RUJjZwIMpantCdS4ewJOVpxGaDok8-qIk" // You'll need to add this from Firebase Console
-      });
-      console.log("FCM Token:", token);
-      if (token) {
-        console.log("Notifications ready!");
-      }
-    } catch (err) {
-      console.error("Error getting token:", err);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="/Icon-192.png">
+  <title>SENDwear Team Pilot</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
-  }
 
-  // Handle foreground messages
-  onMessage(messaging, (payload) => {
-    console.log("Message received:", payload);
-    new Notification(payload.notification.title, {
-      body: payload.notification.body,
-      icon: "/Icon-192.png"
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      width: 100%;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .content {
+      padding: 24px;
+    }
+
+    .card {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card h3 {
+      color: #333;
+      margin-bottom: 12px;
+      font-size: 18px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: white;
+      border-radius: 10px;
+      margin-top: 12px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ccc;
+    }
+
+    .status-dot.active {
+      background: #4caf50;
+      box-shadow: 0 0 5px #4caf50;
+    }
+
+    .status-dot.error {
+      background: #f44336;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 25px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    button:hover {
+      transform: scale(1.02);
+      opacity: 0.9;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .test-btn {
+      background: linear-gradient(135deg, #4caf50, #45a049);
+      margin-top: 0;
+    }
+
+    .log {
+      background: #1e1e1e;
+      color: #0f0;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 12px;
+      border-radius: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 12px;
+    }
+
+    .log p {
+      margin: 4px 0;
+      word-break: break-all;
+    }
+
+    .video-container {
+      margin-top: 16px;
+    }
+
+    video {
+      width: 100%;
+      border-radius: 12px;
+      margin-top: 8px;
+    }
+
+    .error-msg {
+      background: #ffebee;
+      color: #c62828;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .success-msg {
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      display: none;
+    }
+
+    footer {
+      text-align: center;
+      padding: 16px;
+      background: #f8f9fa;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📡 SENDwear Team Pilot</h1>
+      <p>Internal staff communication + push notifications + CSV import</p>
+    </div>
+
+    <div class="content">
+      <div id="errorMsg" class="error-msg"></div>
+      <div id="successMsg" class="success-msg"></div>
+
+      <div class="card">
+        <h3>🔔 Notification Status</h3>
+        <div class="status">
+          <span id="statusDot" class="status-dot"></span>
+          <span id="statusText">Checking permissions...</span>
+        </div>
+        <button id="enableNotificationsBtn">Enable Notifications</button>
+      </div>
+
+      <div class="card">
+        <h3>📱 Test Notification</h3>
+        <button id="testNotificationBtn" class="test-btn">Send Test Notification</button>
+      </div>
+
+      <div class="card">
+        <h3>🎥 Video Walkthrough</h3>
+        <div class="video-container">
+          <video controls>
+            <source src="/Team_Pilot.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>📋 Debug Log</h3>
+        <div id="debugLog" class="log">
+          <p>▶️ App initialized...</p>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      SENDwear Team Pilot v1.0 | Internal Use Only
+    </footer>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+    import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-messaging.js";
+
+    // ============================================
+    // FIREBASE CONFIGURATION
+    // ============================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyCBSUdvQvD0KR15Sq7fLF9CmZ2LqmSMFxm",
+      authDomain: "senwear-team-pilot.firebaseapp.com",
+      projectId: "senwear-team-pilot",
+      storageBucket: "senwear-team-pilot.firebasestorage.app",
+      messagingSenderId: "20021144696",
+      appId: "1:20021144696:web:31f81e3c5c1764a290934d"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const messaging = getMessaging(app);
+
+    // DOM Elements
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const enableBtn = document.getElementById('enableNotificationsBtn');
+    const testBtn = document.getElementById('testNotificationBtn');
+    const errorMsgDiv = document.getElementById('errorMsg');
+    const successMsgDiv = document.getElementById('successMsg');
+    const debugLog = document.getElementById('debugLog');
+
+    // Helper: Add log message
+    function addLog(message, isError = false) {
+      const logEntry = document.createElement('p');
+      logEntry.style.color = isError ? '#ff6b6b' : '#0f0';
+      logEntry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+      debugLog.appendChild(logEntry);
+      debugLog.scrollTop = debugLog.scrollHeight;
+      console.log(message);
+    }
+
+    // Helper: Show error message
+    function showError(message) {
+      errorMsgDiv.textContent = message;
+      errorMsgDiv.style.display = 'block';
+      successMsgDiv.style.display = 'none';
+      setTimeout(() => {
+        errorMsgDiv.style.display = 'none';
+      }, 5000);
+      addLog(`❌ ERROR: ${message}`, true);
+    }
+
+    // Helper: Show success message
+    function showSuccess(message) {
+      successMsgDiv.textContent = message;
+      successMsgDiv.style.display = 'block';
+      errorMsgDiv.style.display = 'none';
+      setTimeout(() => {
+        successMsgDiv.style.display = 'none';
+      }, 3000);
+      addLog(`✅ ${message}`);
+    }
+
+    // Helper: Update notification status UI
+    function updateStatus(hasPermission, token = null) {
+      if (hasPermission) {
+        statusDot.className = 'status-dot active';
+        statusText.textContent = 'Notifications enabled ✓';
+        enableBtn.style.display = 'none';
+        testBtn.disabled = false;
+        if (token) {
+          addLog(`📱 FCM Token: ${token.substring(0, 30)}...`);
+        }
+      } else {
+        statusDot.className = 'status-dot';
+        statusText.textContent = 'Notifications disabled - click "Enable Notifications"';
+        enableBtn.style.display = 'block';
+        testBtn.disabled = true;
+      }
+    }
+
+    // Request notification permission and get token
+    async function requestNotificationPermission() {
+      addLog('🔔 Requesting notification permission...');
+      
+      try {
+        const permission = await Notification.requestPermission();
+        
+        if (permission === 'granted') {
+          addLog('✅ Notification permission granted');
+          
+          // Get FCM token
+          try {
+            const token = await getToken(messaging, {
+              vapidKey: "<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="/Icon-192.png">
+  <title>SENDwear Team Pilot</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      width: 100%;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .content {
+      padding: 24px;
+    }
+
+    .card {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card h3 {
+      color: #333;
+      margin-bottom: 12px;
+      font-size: 18px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: white;
+      border-radius: 10px;
+      margin-top: 12px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ccc;
+    }
+
+    .status-dot.active {
+      background: #4caf50;
+      box-shadow: 0 0 5px #4caf50;
+    }
+
+    .status-dot.error {
+      background: #f44336;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 25px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    button:hover {
+      transform: scale(1.02);
+      opacity: 0.9;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .test-btn {
+      background: linear-gradient(135deg, #4caf50, #45a049);
+      margin-top: 0;
+    }
+
+    .log {
+      background: #1e1e1e;
+      color: #0f0;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 12px;
+      border-radius: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 12px;
+    }
+
+    .log p {
+      margin: 4px 0;
+      word-break: break-all;
+    }
+
+    .video-container {
+      margin-top: 16px;
+    }
+
+    video {
+      width: 100%;
+      border-radius: 12px;
+      margin-top: 8px;
+    }
+
+    .error-msg {
+      background: #ffebee;
+      color: #c62828;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .success-msg {
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      display: none;
+    }
+
+    footer {
+      text-align: center;
+      padding: 16px;
+      background: #f8f9fa;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📡 SENDwear Team Pilot</h1>
+      <p>Internal staff communication + push notifications + CSV import</p>
+    </div>
+
+    <div class="content">
+      <div id="errorMsg" class="error-msg"></div>
+      <div id="successMsg" class="success-msg"></div>
+
+      <div class="card">
+        <h3>🔔 Notification Status</h3>
+        <div class="status">
+          <span id="statusDot" class="status-dot"></span>
+          <span id="statusText">Checking permissions...</span>
+        </div>
+        <button id="enableNotificationsBtn">Enable Notifications</button>
+      </div>
+
+      <div class="card">
+        <h3>📱 Test Notification</h3>
+        <button id="testNotificationBtn" class="test-btn">Send Test Notification</button>
+      </div>
+
+      <div class="card">
+        <h3>🎥 Video Walkthrough</h3>
+        <div class="video-container">
+          <video controls>
+            <source src="/Team_Pilot.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>📋 Debug Log</h3>
+        <div id="debugLog" class="log">
+          <p>▶️ App initialized...</p>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      SENDwear Team Pilot v1.0 | Internal Use Only
+    </footer>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+    import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-messaging.js";
+
+    // ============================================
+    // FIREBASE CONFIGURATION
+    // ============================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyCBSUdvQvD0KR15Sq7fLF9CmZ2LqmSMFxm",
+      authDomain: "senwear-team-pilot.firebaseapp.com",
+      projectId: "senwear-team-pilot",
+      storageBucket: "senwear-team-pilot.firebasestorage.app",
+      messagingSenderId: "20021144696",
+      appId: "1:20021144696:web:31f81e3c5c1764a290934d"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const messaging = getMessaging(app);
+
+    // DOM Elements
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const enableBtn = document.getElementById('enableNotificationsBtn');
+    const testBtn = document.getElementById('testNotificationBtn');
+    const errorMsgDiv = document.getElementById('errorMsg');
+    const successMsgDiv = document.getElementById('successMsg');
+    const debugLog = document.getElementById('debugLog');
+
+    // Helper: Add log message
+    function addLog(message, isError = false) {
+      const logEntry = document.createElement('p');
+      logEntry.style.color = isError ? '#ff6b6b' : '#0f0';
+      logEntry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+      debugLog.appendChild(logEntry);
+      debugLog.scrollTop = debugLog.scrollHeight;
+      console.log(message);
+    }
+
+    // Helper: Show error message
+    function showError(message) {
+      errorMsgDiv.textContent = message;
+      errorMsgDiv.style.display = 'block';
+      successMsgDiv.style.display = 'none';
+      setTimeout(() => {
+        errorMsgDiv.style.display = 'none';
+      }, 5000);
+      addLog(`❌ ERROR: ${message}`, true);
+    }
+
+    // Helper: Show success message
+    function showSuccess(message) {
+      successMsgDiv.textContent = message;
+      successMsgDiv.style.display = 'block';
+      errorMsgDiv.style.display = 'none';
+      setTimeout(() => {
+        successMsgDiv.style.display = 'none';
+      }, 3000);
+      addLog(`✅ ${message}`);
+    }
+
+    // Helper: Update notification status UI
+    function updateStatus(hasPermission, token = null) {
+      if (hasPermission) {
+        statusDot.className = 'status-dot active';
+        statusText.textContent = 'Notifications enabled ✓';
+        enableBtn.style.display = 'none';
+        testBtn.disabled = false;
+        if (token) {
+          addLog(`📱 FCM Token: ${token.substring(0, 30)}...`);
+        }
+      } else {
+        statusDot.className = 'status-dot';
+        statusText.textContent = 'Notifications disabled - click "Enable Notifications"';
+        enableBtn.style.display = 'block';
+        testBtn.disabled = true;
+      }
+    }
+
+    // Request notification permission and get token
+    async function requestNotificationPermission() {
+      addLog('🔔 Requesting notification permission...');
+      
+      try {
+        const permission = await Notification.requestPermission();
+        
+        if (permission === 'granted') {
+          addLog('✅ Notification permission granted');
+          
+          // Get FCM token
+          try {
+            const token = await getToken(messaging, {
+              vapidKey: "BKeVxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx" // REPLACE WITH YOUR VAPID KEY
+            });
+            
+            if (token) {
+              addLog('✅ FCM Token received successfully');
+              updateStatus(true, token);
+              showSuccess('Notifications enabled! You will now receive push notifications.');
+              
+              // Send token to your server (if you have one)
+              console.log('FCM Token:', token);
+            } else {
+              throw new Error('No token received');
+            }
+          } catch (tokenError) {
+            addLog(`⚠️ FCM Token error: ${tokenError.message}`, true);
+            updateStatus(true);
+            showError('Notifications enabled but FCM token failed. Check VAPID key.');
+          }
+        } else {
+          addLog(`❌ Notification permission denied: ${permission}`, true);
+          updateStatus(false);
+          showError('Notification permission denied. Please enable in browser settings.');
+        }
+      } catch (err) {
+        addLog(`❌ Error requesting permission: ${err.message}`, true);
+        updateStatus(false);
+        showError(`Error: ${err.message}`);
+      }
+    }
+
+    // Check current permission status on load
+    async function checkPermissionStatus() {
+      if (Notification.permission === 'granted') {
+        addLog('🔍 Found existing notification permission');
+        updateStatus(true);
+        
+        // Try to get existing token
+        try {
+          const token = await getToken(messaging, {
+            vapidKey: "BKeVxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx" // REPLACE WITH YOUR VAPID KEY
+          });
+          if (token) {
+            addLog(`✅ Existing FCM Token: ${token.substring(0, 30)}...`);
+          }
+        } catch (err) {
+          addLog(`⚠️ Could not retrieve existing token: ${err.message}`, true);
+        }
+      } else if (Notification.permission === 'denied') {
+        addLog('❌ Notifications are blocked', true);
+        updateStatus(false);
+        showError('Notifications are blocked. Please check your browser settings.');
+      } else {
+        addLog('⏳ Notifications not yet requested');
+        updateStatus(false);
+      }
+    }
+
+    // Send test notification
+    async function sendTestNotification() {
+      addLog('🔔 Sending test notification...');
+      
+      if (Notification.permission !== 'granted') {
+        showError('Please enable notifications first');
+        return;
+      }
+      
+      try {
+        // Show a local test notification
+        const notification = new Notification('SENDwear Test', {
+          body: '🎉 This is a test notification! Your setup is working!',
+          icon: '/Icon-192.png',
+          badge: '/Icon-192.png',
+          vibrate: [200, 100, 200]
+        });
+        
+        notification.onclick = () => {
+          addLog('📱 Test notification clicked');
+          window.focus();
+        };
+        
+        showSuccess('Test notification sent! Check your screen.');
+        addLog('✅ Test notification displayed');
+        
+      } catch (err) {
+        addLog(`❌ Failed to send test: ${err.message}`, true);
+        showError(`Failed: ${err.message}`);
+      }
+    }
+
+    // Handle foreground messages (when app is open)
+    onMessage(messaging, (payload) => {
+      addLog(`📨 Foreground message received: ${payload.notification?.title || 'No title'}`);
+      
+      if (payload.notification) {
+        new Notification(payload.notification.title, {
+          body: payload.notification.body,
+          icon: payload.notification.icon || '/Icon-192.png'
+        });
+        showSuccess(`New message: ${payload.notification.title}`);
+      }
     });
-  });
 
-  requestNotificationPermission();
-</script>
+    // Check if service worker is registered
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+          addLog('✅ Service Worker registered successfully');
+        })
+        .catch(err => {
+          addLog(`❌ Service Worker registration failed: ${err.message}`, true);
+          showError(`Service Worker failed: ${err.message}`);
+        });
+    } else {
+      addLog('❌ Service Workers not supported in this browser', true);
+    }
 
+    // Event listeners
+    enableBtn.addEventListener('click', requestNotificationPermission);
+    testBtn.addEventListener('click', sendTestNotification);
 
+    // Initialize
+    addLog('🚀 SENDwear Team Pilot initialized');
+    checkPermissionStatus();
+    
+    // Check if browser supports notifications
+    if (!('Notification' in window)) {
+      addLog('❌ This browser does not support notifications', true);
+      showError('Your browser does not support notifications');
+    }
+  </script>
+</body>
+</html>" // REPLACE WITH YOUR VAPID KEY
+            });
+            
+            if (token) {
+              addLog('✅ FCM Token received successfully');
+              updateStatus(true, token);
+              showSuccess('Notifications enabled! You will now receive push notifications.');
+              
+              // Send token to your server (if you have one)
+              console.log('FCM Token:', token);
+            } else {
+              throw new Error('No token received');
+            }
+          } catch (tokenError) {
+            addLog(`⚠️ FCM Token error: ${tokenError.message}`, true);
+            updateStatus(true);
+            showError('Notifications enabled but FCM token failed. Check VAPID key.');
+          }
+        } else {
+          addLog(`❌ Notification permission denied: ${permission}`, true);
+          updateStatus(false);
+          showError('Notification permission denied. Please enable in browser settings.');
+        }
+      } catch (err) {
+        addLog(`❌ Error requesting permission: ${err.message}`, true);
+        updateStatus(false);
+        showError(`Error: ${err.message}`);
+      }
+    }
+
+    // Check current permission status on load
+    async function checkPermissionStatus() {
+      if (Notification.permission === 'granted') {
+        addLog('🔍 Found existing notification permission');
+        updateStatus(true);
+        
+        // Try to get existing token
+        try {
+          const token = await getToken(messaging, {
+            vapidKey: "<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="/Icon-192.png">
+  <title>SENDwear Team Pilot</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      width: 100%;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .content {
+      padding: 24px;
+    }
+
+    .card {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card h3 {
+      color: #333;
+      margin-bottom: 12px;
+      font-size: 18px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: white;
+      border-radius: 10px;
+      margin-top: 12px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ccc;
+    }
+
+    .status-dot.active {
+      background: #4caf50;
+      box-shadow: 0 0 5px #4caf50;
+    }
+
+    .status-dot.error {
+      background: #f44336;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 25px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    button:hover {
+      transform: scale(1.02);
+      opacity: 0.9;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .test-btn {
+      background: linear-gradient(135deg, #4caf50, #45a049);
+      margin-top: 0;
+    }
+
+    .log {
+      background: #1e1e1e;
+      color: #0f0;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 12px;
+      border-radius: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 12px;
+    }
+
+    .log p {
+      margin: 4px 0;
+      word-break: break-all;
+    }
+
+    .video-container {
+      margin-top: 16px;
+    }
+
+    video {
+      width: 100%;
+      border-radius: 12px;
+      margin-top: 8px;
+    }
+
+    .error-msg {
+      background: #ffebee;
+      color: #c62828;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .success-msg {
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      display: none;
+    }
+
+    footer {
+      text-align: center;
+      padding: 16px;
+      background: #f8f9fa;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📡 SENDwear Team Pilot</h1>
+      <p>Internal staff communication + push notifications + CSV import</p>
+    </div>
+
+    <div class="content">
+      <div id="errorMsg" class="error-msg"></div>
+      <div id="successMsg" class="success-msg"></div>
+
+      <div class="card">
+        <h3>🔔 Notification Status</h3>
+        <div class="status">
+          <span id="statusDot" class="status-dot"></span>
+          <span id="statusText">Checking permissions...</span>
+        </div>
+        <button id="enableNotificationsBtn">Enable Notifications</button>
+      </div>
+
+      <div class="card">
+        <h3>📱 Test Notification</h3>
+        <button id="testNotificationBtn" class="test-btn">Send Test Notification</button>
+      </div>
+
+      <div class="card">
+        <h3>🎥 Video Walkthrough</h3>
+        <div class="video-container">
+          <video controls>
+            <source src="/Team_Pilot.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>📋 Debug Log</h3>
+        <div id="debugLog" class="log">
+          <p>▶️ App initialized...</p>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      SENDwear Team Pilot v1.0 | Internal Use Only
+    </footer>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+    import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-messaging.js";
+
+    // ============================================
+    // FIREBASE CONFIGURATION
+    // ============================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyCBSUdvQvD0KR15Sq7fLF9CmZ2LqmSMFxm",
+      authDomain: "senwear-team-pilot.firebaseapp.com",
+      projectId: "senwear-team-pilot",
+      storageBucket: "senwear-team-pilot.firebasestorage.app",
+      messagingSenderId: "20021144696",
+      appId: "1:20021144696:web:31f81e3c5c1764a290934d"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const messaging = getMessaging(app);
+
+    // DOM Elements
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const enableBtn = document.getElementById('enableNotificationsBtn');
+    const testBtn = document.getElementById('testNotificationBtn');
+    const errorMsgDiv = document.getElementById('errorMsg');
+    const successMsgDiv = document.getElementById('successMsg');
+    const debugLog = document.getElementById('debugLog');
+
+    // Helper: Add log message
+    function addLog(message, isError = false) {
+      const logEntry = document.createElement('p');
+      logEntry.style.color = isError ? '#ff6b6b' : '#0f0';
+      logEntry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+      debugLog.appendChild(logEntry);
+      debugLog.scrollTop = debugLog.scrollHeight;
+      console.log(message);
+    }
+
+    // Helper: Show error message
+    function showError(message) {
+      errorMsgDiv.textContent = message;
+      errorMsgDiv.style.display = 'block';
+      successMsgDiv.style.display = 'none';
+      setTimeout(() => {
+        errorMsgDiv.style.display = 'none';
+      }, 5000);
+      addLog(`❌ ERROR: ${message}`, true);
+    }
+
+    // Helper: Show success message
+    function showSuccess(message) {
+      successMsgDiv.textContent = message;
+      successMsgDiv.style.display = 'block';
+      errorMsgDiv.style.display = 'none';
+      setTimeout(() => {
+        successMsgDiv.style.display = 'none';
+      }, 3000);
+      addLog(`✅ ${message}`);
+    }
+
+    // Helper: Update notification status UI
+    function updateStatus(hasPermission, token = null) {
+      if (hasPermission) {
+        statusDot.className = 'status-dot active';
+        statusText.textContent = 'Notifications enabled ✓';
+        enableBtn.style.display = 'none';
+        testBtn.disabled = false;
+        if (token) {
+          addLog(`📱 FCM Token: ${token.substring(0, 30)}...`);
+        }
+      } else {
+        statusDot.className = 'status-dot';
+        statusText.textContent = 'Notifications disabled - click "Enable Notifications"';
+        enableBtn.style.display = 'block';
+        testBtn.disabled = true;
+      }
+    }
+
+    // Request notification permission and get token
+    async function requestNotificationPermission() {
+      addLog('🔔 Requesting notification permission...');
+      
+      try {
+        const permission = await Notification.requestPermission();
+        
+        if (permission === 'granted') {
+          addLog('✅ Notification permission granted');
+          
+          // Get FCM token
+          try {
+            const token = await getToken(messaging, {
+              vapidKey: "BKeVxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx" // REPLACE WITH YOUR VAPID KEY
+            });
+            
+            if (token) {
+              addLog('✅ FCM Token received successfully');
+              updateStatus(true, token);
+              showSuccess('Notifications enabled! You will now receive push notifications.');
+              
+              // Send token to your server (if you have one)
+              console.log('FCM Token:', token);
+            } else {
+              throw new Error('No token received');
+            }
+          } catch (tokenError) {
+            addLog(`⚠️ FCM Token error: ${tokenError.message}`, true);
+            updateStatus(true);
+            showError('Notifications enabled but FCM token failed. Check VAPID key.');
+          }
+        } else {
+          addLog(`❌ Notification permission denied: ${permission}`, true);
+          updateStatus(false);
+          showError('Notification permission denied. Please enable in browser settings.');
+        }
+      } catch (err) {
+        addLog(`❌ Error requesting permission: ${err.message}`, true);
+        updateStatus(false);
+        showError(`Error: ${err.message}`);
+      }
+    }
+
+    // Check current permission status on load
+    async function checkPermissionStatus() {
+      if (Notification.permission === 'granted') {
+        addLog('🔍 Found existing notification permission');
+        updateStatus(true);
+        
+        // Try to get existing token
+        try {
+          const token = await getToken(messaging, {
+            vapidKey: "BKeVxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXxXx" // REPLACE WITH YOUR VAPID KEY
+          });
+          if (token) {
+            addLog(`✅ Existing FCM Token: ${token.substring(0, 30)}...`);
+          }
+        } catch (err) {
+          addLog(`⚠️ Could not retrieve existing token: ${err.message}`, true);
+        }
+      } else if (Notification.permission === 'denied') {
+        addLog('❌ Notifications are blocked', true);
+        updateStatus(false);
+        showError('Notifications are blocked. Please check your browser settings.');
+      } else {
+        addLog('⏳ Notifications not yet requested');
+        updateStatus(false);
+      }
+    }
+
+    // Send test notification
+    async function sendTestNotification() {
+      addLog('🔔 Sending test notification...');
+      
+      if (Notification.permission !== 'granted') {
+        showError('Please enable notifications first');
+        return;
+      }
+      
+      try {
+        // Show a local test notification
+        const notification = new Notification('SENDwear Test', {
+          body: '🎉 This is a test notification! Your setup is working!',
+          icon: '/Icon-192.png',
+          badge: '/Icon-192.png',
+          vibrate: [200, 100, 200]
+        });
+        
+        notification.onclick = () => {
+          addLog('📱 Test notification clicked');
+          window.focus();
+        };
+        
+        showSuccess('Test notification sent! Check your screen.');
+        addLog('✅ Test notification displayed');
+        
+      } catch (err) {
+        addLog(`❌ Failed to send test: ${err.message}`, true);
+        showError(`Failed: ${err.message}`);
+      }
+    }
+
+    // Handle foreground messages (when app is open)
+    onMessage(messaging, (payload) => {
+      addLog(`📨 Foreground message received: ${payload.notification?.title || 'No title'}`);
+      
+      if (payload.notification) {
+        new Notification(payload.notification.title, {
+          body: payload.notification.body,
+          icon: payload.notification.icon || '/Icon-192.png'
+        });
+        showSuccess(`New message: ${payload.notification.title}`);
+      }
+    });
+
+    // Check if service worker is registered
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+          addLog('✅ Service Worker registered successfully');
+        })
+        .catch(err => {
+          addLog(`❌ Service Worker registration failed: ${err.message}`, true);
+          showError(`Service Worker failed: ${err.message}`);
+        });
+    } else {
+      addLog('❌ Service Workers not supported in this browser', true);
+    }
+
+    // Event listeners
+    enableBtn.addEventListener('click', requestNotificationPermission);
+    testBtn.addEventListener('click', sendTestNotification);
+
+    // Initialize
+    addLog('🚀 SENDwear Team Pilot initialized');
+    checkPermissionStatus();
+    
+    // Check if browser supports notifications
+    if (!('Notification' in window)) {
+      addLog('❌ This browser does not support notifications', true);
+      showError('Your browser does not support notifications');
+    }
+  </script>
+</body>
+</html>" // <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#000000">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="/Icon-192.png">
+  <title>SENDwear Team Pilot</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 600px;
+      width: 100%;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px 20px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      opacity: 0.9;
+      font-size: 14px;
+    }
+
+    .content {
+      padding: 24px;
+    }
+
+    .card {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .card h3 {
+      color: #333;
+      margin-bottom: 12px;
+      font-size: 18px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: white;
+      border-radius: 10px;
+      margin-top: 12px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ccc;
+    }
+
+    .status-dot.active {
+      background: #4caf50;
+      box-shadow: 0 0 5px #4caf50;
+    }
+
+    .status-dot.error {
+      background: #f44336;
+    }
+
+    button {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 25px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+      transition: transform 0.2s, opacity 0.2s;
+    }
+
+    button:hover {
+      transform: scale(1.02);
+      opacity: 0.9;
+    }
+
+    button:active {
+      transform: scale(0.98);
+    }
+
+    .test-btn {
+      background: linear-gradient(135deg, #4caf50, #45a049);
+      margin-top: 0;
+    }
+
+    .log {
+      background: #1e1e1e;
+      color: #0f0;
+      font-family: monospace;
+      font-size: 12px;
+      padding: 12px;
+      border-radius: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 12px;
+    }
+
+    .log p {
+      margin: 4px 0;
+      word-break: break-all;
+    }
+
+    .video-container {
+      margin-top: 16px;
+    }
+
+    video {
+      width: 100%;
+      border-radius: 12px;
+      margin-top: 8px;
+    }
+
+    .error-msg {
+      background: #ffebee;
+      color: #c62828;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .success-msg {
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      display: none;
+    }
+
+    footer {
+      text-align: center;
+      padding: 16px;
+      background: #f8f9fa;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📡 SENDwear Team Pilot</h1>
+      <p>Internal staff communication + push notifications + CSV import</p>
+    </div>
+
+    <div class="content">
+      <div id="errorMsg" class="error-msg"></div>
+      <div id="successMsg" class="success-msg"></div>
+
+      <div class="card">
+        <h3>🔔 Notification Status</h3>
+        <div class="status">
+          <span id="statusDot" class="status-dot"></span>
+          <span id="statusText">Checking permissions...</span>
+        </div>
+        <button id="enableNotificationsBtn">Enable Notifications</button>
+      </div>
+
+      <div class="card">
+        <h3>📱 Test Notification</h3>
+        <button id="testNotificationBtn" class="test-btn">Send Test Notification</button>
+      </div>
+
+      <div class="card">
+        <h3>🎥 Video Walkthrough</h3>
+        <div class="video-container">
+          <video controls>
+            <source src="/Team_Pilot.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>📋 Debug Log</h3>
+        <div id="debugLog" class="log">
+          <p>▶️ App initialized...</p>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      SENDwear Team Pilot v1.0 | Internal Use Only
+    </footer>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+    import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-messaging.js";
+
+    // ============================================
+    // FIREBASE CONFIGURATION
+    // ============================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyCBSUdvQvD0KR15Sq7fLF9CmZ2LqmSMFxm",
+      authDomain: "senwear-team-pilot.firebaseapp.com",
+      projectId: "senwear-team-pilot",
+      storageBucket: "senwear-team-pilot.firebasestorage.app",
+      messagingSenderId: "20021144696",
+      appId: "1:20021144696:web:31f81e3c5c1764a290934d"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const messaging = getMessaging(app);
+
+    // DOM Elements
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const enableBtn = document.getElementById('enableNotificationsBtn');
+    const testBtn = document.getElementById('testNotificationBtn');
+    const errorMsgDiv = document.getElementById('errorMsg');
+    const successMsgDiv = document.getElementById('successMsg');
+    const debugLog = document.getElementById('debugLog');
+
+    // Helper: Add log message
+    function addLog(message, isError = false) {
+      const logEntry = document.createElement('p');
+      logEntry.style.color = isError ? '#ff6b6b' : '#0f0';
+      logEntry.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+      debugLog.appendChild(logEntry);
+      debugLog.scrollTop = debugLog.scrollHeight;
+      console.log(message);
+    }
+
+    // Helper: Show error message
+    function showError(message) {
+      errorMsgDiv.textContent = message;
+      errorMsgDiv.style.display = 'block';
+      successMsgDiv.style.display = 'none';
+      setTimeout(() => {
+        errorMsgDiv.style.display = 'none';
+      }, 5000);
+      addLog(`❌ ERROR: ${message}`, true);
+    }
+
+    // Helper: Show success message
+    function showSuccess(message) {
+      successMsgDiv.textContent = message;
+      successMsgDiv.style.display = 'block';
+      errorMsgDiv.style.display = 'none';
+      setTimeout(() => {
+        successMsgDiv.style.display = 'none';
+      }, 3000);
+      addLog(`✅ ${message}`);
+    }
+
+    // Helper: Update notification status UI
+    function updateStatus(hasPermission, token = null) {
+      if (hasPermission) {
+        statusDot.className = 'status-dot active';
+        statusText.textContent = 'Notifications enabled ✓';
+        enableBtn.style.display = 'none';
+        testBtn.disabled = false;
+        if (token) {
+          addLog(`📱 FCM Token: ${token.substring(0, 30)}...`);
+        }
+      } else {
+        statusDot.className = 'status-dot';
+        statusText.textContent = 'Notifications disabled - click "Enable Notifications"';
+        enableBtn.style.display = 'block';
+        testBtn.disabled = true;
+      }
+    }
+
+    // Request notification permission and get token
+    async function requestNotificationPermission() {
+      addLog('🔔 Requesting notification permission...');
+      
+      try {
+        const permission = await Notification.requestPermission();
+        
+        if (permission === 'granted') {
+          addLog('✅ Notification permission granted');
+          
+          // Get FCM token
+          try {
+            const token = await getToken(messaging, {
+              vapidKey: "BHHEkcdII53eQ2T8PkNe8ll7x21HfYUSqqadcrT4AdIi9h3HQL-5T3RUJjZwIMpantCdS4ewJOVpxGaDok8-qIk" // REPLACE WITH YOUR VAPID KEY
+            });
+            
+            if (token) {
+              addLog('✅ FCM Token received successfully');
+              updateStatus(true, token);
+              showSuccess('Notifications enabled! You will now receive push notifications.');
+              
+              // Send token to your server (if you have one)
+              console.log('FCM Token:', token);
+            } else {
+              throw new Error('No token received');
+            }
+          } catch (tokenError) {
+            addLog(`⚠️ FCM Token error: ${tokenError.message}`, true);
+            updateStatus(true);
+            showError('Notifications enabled but FCM token failed. Check VAPID key.');
+          }
+        } else {
+          addLog(`❌ Notification permission denied: ${permission}`, true);
+          updateStatus(false);
+          showError('Notification permission denied. Please enable in browser settings.');
+        }
+      } catch (err) {
+        addLog(`❌ Error requesting permission: ${err.message}`, true);
+        updateStatus(false);
+        showError(`Error: ${err.message}`);
+      }
+    }
+
+    // Check current permission status on load
+    async function checkPermissionStatus() {
+      if (Notification.permission === 'granted') {
+        addLog('🔍 Found existing notification permission');
+        updateStatus(true);
+        
+        // Try to get existing token
+        try {
+          const token = await getToken(messaging, {
+            vapidKey: "BHHEkcdII53eQ2T8PkNe8ll7x21HfYUSqqadcrT4AdIi9h3HQL-5T3RUJjZwIMpantCdS4ewJOVpxGaDok8-qIk" // REPLACE WITH YOUR VAPID KEY
+          });
+          if (token) {
+            addLog(`✅ Existing FCM Token: ${token.substring(0, 30)}...`);
+          }
+        } catch (err) {
+          addLog(`⚠️ Could not retrieve existing token: ${err.message}`, true);
+        }
+      } else if (Notification.permission === 'denied') {
+        addLog('❌ Notifications are blocked', true);
+        updateStatus(false);
+        showError('Notifications are blocked. Please check your browser settings.');
+      } else {
+        addLog('⏳ Notifications not yet requested');
+        updateStatus(false);
+      }
+    }
+
+    // Send test notification
+    async function sendTestNotification() {
+      addLog('🔔 Sending test notification...');
+      
+      if (Notification.permission !== 'granted') {
+        showError('Please enable notifications first');
+        return;
+      }
+      
+      try {
+        // Show a local test notification
+        const notification = new Notification('SENDwear Test', {
+          body: '🎉 This is a test notification! Your setup is working!',
+          icon: '/Icon-192.png',
+          badge: '/Icon-192.png',
+          vibrate: [200, 100, 200]
+        });
+        
+        notification.onclick = () => {
+          addLog('📱 Test notification clicked');
+          window.focus();
+        };
+        
+        showSuccess('Test notification sent! Check your screen.');
+        addLog('✅ Test notification displayed');
+        
+      } catch (err) {
+        addLog(`❌ Failed to send test: ${err.message}`, true);
+        showError(`Failed: ${err.message}`);
+      }
+    }
+
+    // Handle foreground messages (when app is open)
+    onMessage(messaging, (payload) => {
+      addLog(`📨 Foreground message received: ${payload.notification?.title || 'No title'}`);
+      
+      if (payload.notification) {
+        new Notification(payload.notification.title, {
+          body: payload.notification.body,
+          icon: payload.notification.icon || '/Icon-192.png'
+        });
+        showSuccess(`New message: ${payload.notification.title}`);
+      }
+    });
+
+    // Check if service worker is registered
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+          addLog('✅ Service Worker registered successfully');
+        })
+        .catch(err => {
+          addLog(`❌ Service Worker registration failed: ${err.message}`, true);
+          showError(`Service Worker failed: ${err.message}`);
+        });
+    } else {
+      addLog('❌ Service Workers not supported in this browser', true);
+    }
+
+    // Event listeners
+    enableBtn.addEventListener('click', requestNotificationPermission);
+    testBtn.addEventListener('click', sendTestNotification);
+
+    // Initialize
+    addLog('🚀 SENDwear Team Pilot initialized');
+    checkPermissionStatus();
+    
+    // Check if browser supports notifications
+    if (!('Notification' in window)) {
+      addLog('❌ This browser does not support notifications', true);
+      showError('Your browser does not support notifications');
+    }
+  </script>
+</body>
+</html>
+          });
+          if (token) {
+            addLog(`✅ Existing FCM Token: ${token.substring(0, 30)}...`);
+          }
+        } catch (err) {
+          addLog(`⚠️ Could not retrieve existing token: ${err.message}`, true);
+        }
+      } else if (Notification.permission === 'denied') {
+        addLog('❌ Notifications are blocked', true);
+        updateStatus(false);
+        showError('Notifications are blocked. Please check your browser settings.');
+      } else {
+        addLog('⏳ Notifications not yet requested');
+        updateStatus(false);
+      }
+    }
+
+    // Send test notification
+    async function sendTestNotification() {
+      addLog('🔔 Sending test notification...');
+      
+      if (Notification.permission !== 'granted') {
+        showError('Please enable notifications first');
+        return;
+      }
+      
+      try {
+        // Show a local test notification
+        const notification = new Notification('SENDwear Test', {
+          body: '🎉 This is a test notification! Your setup is working!',
+          icon: '/Icon-192.png',
+          badge: '/Icon-192.png',
+          vibrate: [200, 100, 200]
+        });
+        
+        notification.onclick = () => {
+          addLog('📱 Test notification clicked');
+          window.focus();
+        };
+        
+        showSuccess('Test notification sent! Check your screen.');
+        addLog('✅ Test notification displayed');
+        
+      } catch (err) {
+        addLog(`❌ Failed to send test: ${err.message}`, true);
+        showError(`Failed: ${err.message}`);
+      }
+    }
+
+    // Handle foreground messages (when app is open)
+    onMessage(messaging, (payload) => {
+      addLog(`📨 Foreground message received: ${payload.notification?.title || 'No title'}`);
+      
+      if (payload.notification) {
+        new Notification(payload.notification.title, {
+          body: payload.notification.body,
+          icon: payload.notification.icon || '/Icon-192.png'
+        });
+        showSuccess(`New message: ${payload.notification.title}`);
+      }
+    });
+
+    // Check if service worker is registered
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(registration => {
+          addLog('✅ Service Worker registered successfully');
+        })
+        .catch(err => {
+          addLog(`❌ Service Worker registration failed: ${err.message}`, true);
+          showError(`Service Worker failed: ${err.message}`);
+        });
+    } else {
+      addLog('❌ Service Workers not supported in this browser', true);
+    }
+
+    // Event listeners
+    enableBtn.addEventListener('click', requestNotificationPermission);
+    testBtn.addEventListener('click', sendTestNotification);
+
+    // Initialize
+    addLog('🚀 SENDwear Team Pilot initialized');
+    checkPermissionStatus();
+    
+    // Check if browser supports notifications
+    if (!('Notification' in window)) {
+      addLog('❌ This browser does not support notifications', true);
+      showError('Your browser does not support notifications');
+    }
+  </script>
+</body>
+</html>
