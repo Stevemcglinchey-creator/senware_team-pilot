@@ -62,12 +62,12 @@ importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compa
 
 // Initialize Firebase - REPLACE WITH YOUR ACTUAL CONFIG
 firebase.initializeApp({
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_AUTH_DOMAIN",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_STORAGE_BUCKET",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCBSUdvQvD0KR15Sq7flF9CmZ2LqmSMFxM",
+  authDomain: "senwear-team-pilot.firebaseapp.com",
+  projectId: "senwear-team-pilot",
+  storageBucket: "senwear-team-pilot.firebasestorage.app",
+  messagingSenderId: "2002144696",
+  appId: "1:2002144696:web:31f81e3c5c1764a290934d"
 });
 
 const messaging = firebase.messaging();
