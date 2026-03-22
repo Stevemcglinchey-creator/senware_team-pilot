@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" href="/Icon-192.png">
+  <title>Senwear Team Pilot</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f5f5f5; min-height: 100vh; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); overflow: hidden; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px 20px; text-align: center; }
+    .header h1 { font-size: 28px; margin-bottom: 8px; }
+    .header p { opacity: 0.9; font-size: 14px; }
+    .content { padding: 24px; }
+    .card { background: #f8f9fa; border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+    .card h3 { color: #333; margin-bottom: 12px; }
+    .status { display: flex; align-items: center; gap: 12px; padding: 12px; background: white; border-radius: 10px; margin-top: 12px; }
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; background: #ccc; }
+    .status-dot.active { background: #4caf50; }
+    button { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; padding: 12px 24px; border-radius: 25px; font-size: 16px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; }
+    .alert-btn { background: linear-gradient(135deg, #f44336, #d32f2f); margin-top: 20px; }
+    .test-btn { background: linear-gradient(135deg, #4caf50, #45a049); }
+    input, textarea, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; margin-bottom: 10px; font-family: inherit; }
+    .log { background: #1e1e1e; color: #0f0; font-family: monospace; font-size: 12px; padding: 12px; border-radius: 10px; max-height: 200px; overflow-y: auto; }
+    .log p { margin: 4px 0; }
+    .message-list { background: white; border-radius: 10px; margin-top: 12px; max-height: 300px; overflow-y: auto; border: 1px solid #eee; }
+    .message-item { padding: 12px; border-bottom: 1px solid #eee; }
+    .message-item strong { color: #667eea; }
+    .message-item small { color: #999; font-size: 11px; }
+    .error-msg, .success-msg { padding: 12px; border-radius: 10px; margin-bottom: 16px; display: none; }
+    .error-msg { background: #ffebee; color: #c62828; }
+    .success-msg { background: #e8f5e9; color: #2e7d32; }
+    video { width: 100%; border-radius: 12px; margin-top: 8px; }
+    .device-count { font-size: 12px; color: #666; margin-top: 5px; }
+    .form-row { display: flex; gap: 10px; }
+    .form-row input { flex: 1; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📡 Senwear Team Pilot</h1>
+      <p>Internal staff communication + push notifications + CSV import</p>
+    </div>
+    <div class="content">
+      <div id="errorMsg" class="error-msg"></div>
+      <div id="successMsg" class="success-msg"></div>
+      
+      <div class="card">
+        <h3>🔔 Notification Status</h3>
+        <div class="status">
+          <span id="statusDot" class="status-dot"></span>
+          <span id="statusText">Checking permissions...</span>
+        </div>
+        <div id="deviceCount" class="device-count"></div>
+        <button id="enableBtn">Enable Notifications</button>
+      </div>
+      
+      <div class="card">
+        <h3>📢 Send Alert to Team</h3>
+        <div class="form-row">
+          <input type="text" id="initialsInput" placeholder="Your initials (e.g., SMG)" maxlength="10">
+          <input type="text" id="roleInput" placeholder="Role (e.g., SNA)" maxlength="20">
+        </div>
+        <input type="text" id="studentInput" placeholder="Student ID / Name (optional)">
+        <select id="typeInput">
+          <option value="Needs-to-Know">Needs-to-Know</option>
+          <option value="Emergency">Emergency</option>
+          <option value="Update">Update</option>
+          <option value="Info">Information</option>
+        </select>
+        <textarea id="messageInput" rows="3" placeholder="Type your alert message here..."></textarea>
+        <button id="sendAlertBtn" class="alert-btn" disabled>📢 SEND ALERT TO TEAM</button>
+      </div>
+      
+      <div class="card">
+        <h3>📱 Test Notification (Self Only)</h3>
+        <button id="testBtn" class="test-btn" disabled>Send Test Notification to Myself</button>
+      </div>
+      
+      <div class="card">
+        <h3>📨 Recent Alerts</h3>
+        <div id="messageList" class="message-list">
+          <p style="padding: 12px; color: #999;">Loading alerts...</p>
+        </div>
+      </div>
+      
+      <div class="card">
+        <h3>🎥 Video Walkthrough</h3>
+        <video controls>
+          <source src="/Team_Pilot.mp4" type="video/mp4">
+        </video>
+      </div>
+      
+      <div class="card">
+        <h3>📋 Debug Log</h3>
+        <div id="debugLog" class="log">
+          <p>▶️ App initialized...</p>
+        </div>
+      </div>
+    </div>
+    <footer style="text-align: center; padding: 16px; background: #f8f9fa; font-size: 12px; color: #666;">
+      Senwear Team Pilot | Push Notifications Enabled
+    </footer>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+    import { getMessaging, getToken, onMessage } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-messaging.js";
+    import { getFirestore, collection, addDoc, query, orderBy, getDocs, doc, setDoc, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+    // Firebase Config
+    const firebaseConfig = {
+      apiKey: "AIzaSyCBSUdvQvD0KR15Sq7fLF9CmZ2LqmSMFxm",
+      authDomain: "senwear-team-pilot.firebaseapp.com",
+      projectId: "senwear-team-pilot",
+      storageBucket: "senwear-team-pilot.firebasestorage.app",
+      messagingSenderId: "20021144696",
+      appId: "1:20021144696:web:31f81e3c5c1764a290934d"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const messaging = getMessaging(app);
+    const db = getFirestore(app);
+    
+    // DOM Elements
+    const enableBtn = document.getElementById('enableBtn');
+    const testBtn = document.getElementById('testBtn');
+    const sendAlertBtn = document.getElementById('sendAlertBtn');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const errorMsgDiv = document.getElementById('errorMsg');
+    const successMsgDiv = document.getElementById('successMsg');
+    const debugLog = document.getElementById('debugLog');
+    const messageListDiv = document.getElementById('messageList');
+    const deviceCountSpan = document.getElementById('deviceCount');
+    const initialsInput = document.getElementById('initialsInput');
+    const roleInput = document.getElementById('roleInput');
+    const studentInput = document.getElementById('studentInput');
+    const typeInput = document.getElementById('typeInput');
+    const messageInput = document.getElementById('messageInput');
+    
+    let currentFCMToken = null;
+    let currentDeviceId = null;
+
+    // Helper functions
+    function addLog(msg, isError = false) {
+      const p = document.createElement('p');
+      p.style.color = isError ? '#ff6b6b' : '#0f0';
+      p.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      debugLog.appendChild(p);
+      debugLog.scrollTop = debugLog.scrollHeight;
+      console.log(msg);
+    }
+
+    function showError(msg) {
+      errorMsgDiv.textContent = msg;
+      errorMsgDiv.style.display = 'block';
+      successMsgDiv.style.display = 'none';
+      setTimeout(() => errorMsgDiv.style.display = 'none', 5000);
+      addLog(`❌ ${msg}`, true);
+    }
+
+    function showSuccess(msg) {
+      successMsgDiv.textContent = msg;
+      successMsgDiv.style.display = 'block';
+      errorMsgDiv.style.display = 'none';
+      setTimeout(() => successMsgDiv.style.display = 'none', 3000);
+      addLog(`✅ ${msg}`);
+    }
+
+    function updateStatus(enabled) {
+      if (enabled) {
+        statusDot.className = 'status-dot active';
+        statusText.textContent = 'Notifications enabled ✓';
+        enableBtn.style.display = 'none';
+        testBtn.disabled = false;
+        sendAlertBtn.disabled = false;
+      } else {
+        statusDot.className = 'status-dot';
+        statusText.textContent = 'Notifications disabled - click Enable';
+        enableBtn.style.display = 'block';
+        testBtn.disabled = true;
+        sendAlertBtn.disabled = true;
+      }
+    }
+
+    // ============================================
+    // TOKEN MANAGEMENT IN FIRESTORE
+    // ============================================
+    
+    function getDeviceId() {
+      let deviceId = localStorage.getItem('senwear_device_id');
+      if (!deviceId) {
+        deviceId = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('senwear_device_id', deviceId);
+      }
+      return deviceId;
+    }
+
+    async function saveTokenToFirestore(token) {
+      const deviceId = getDeviceId();
+      currentDeviceId = deviceId;
+      
+      try {
+        const tokenRef = doc(db, 'tokens', deviceId);
+        await setDoc(tokenRef, {
+          token: token,
+          deviceId: deviceId,
+          lastActive: serverTimestamp(),
+          createdAt: serverTimestamp(),
+          userAgent: navigator.userAgent
+        });
+        addLog(`💾 Token saved to Firestore!`);
+        return true;
+      } catch (err) {
+        addLog(`❌ Failed to save token: ${err.message}`, true);
+        return false;
+      }
+    }
+
+    async function getAllTokens() {
+      try {
+        const tokensQuery = query(collection(db, 'tokens'));
+        const snapshot = await getDocs(tokensQuery);
+        const tokens = [];
+        snapshot.forEach(doc => {
+          if (doc.data().token) {
+            tokens.push(doc.data().token);
+          }
+        });
+        addLog(`📋 Retrieved ${tokens.length} tokens from Firestore`);
+        deviceCountSpan.textContent = `📱 ${tokens.length} device(s) registered`;
+        return tokens;
+      } catch (err) {
+        addLog(`❌ Failed to get tokens: ${err.message}`, true);
+        return [];
+      }
+    }
+
+    // ============================================
+    // ALERTS MANAGEMENT IN FIRESTORE
+    // ============================================
+    
+    // Save alert to Firestore - MATCHES YOUR DATABASE STRUCTURE
+    async function saveAlertToFirestore(initials, message, role, student, type) {
+      try {
+        const alertsRef = collection(db, 'alerts');
+        const docRef = await addDoc(alertsRef, {
+          acknowledged: false,
+          initials: initials.toUpperCase(),
+          message: message,
+          role: role || "SNA",
+          student: student || "All",
+          timestamp: Date.now(),  // Unix timestamp in milliseconds
+          type: type || "Needs-to-Know"
+        });
+        addLog(`📝 Alert saved to Firestore with ID: ${docRef.id}`);
+        return docRef.id;
+      } catch (err) {
+        addLog(`❌ Failed to save alert: ${err.message}`, true);
+        throw err;
+      }
+    }
+
+    // Load alerts from Firestore - REAL-TIME UPDATES
+    function loadAlertsFromFirestore() {
+      const alertsQuery = query(collection(db, 'alerts'), orderBy('timestamp', 'desc'));
+      
+      onSnapshot(alertsQuery, (snapshot) => {
+        const alerts = [];
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          // Convert timestamp from Unix milliseconds to readable date
+          let readableDate = "Just now";
+          if (data.timestamp) {
+            const date = new Date(data.timestamp);
+            readableDate = date.toLocaleString();
+          }
+          
+          alerts.push({
+            id: doc.id,
+            initials: data.initials || "?",
+            message: data.message || "",
+            role: data.role || "",
+            student: data.student || "",
+            type: data.type || "",
+            timestamp: readableDate,
+            rawTimestamp: data.timestamp
+          });
+        });
+        
+        displayAlerts(alerts);
+        addLog(`📨 Loaded ${alerts.length} alerts from Firestore`);
+      }, (err) => {
+        addLog(`❌ Error loading alerts: ${err.message}`, true);
+      });
+    }
+
+    function displayAlerts(alerts) {
+      if (alerts.length === 0) {
+        messageListDiv.innerHTML = '<p style="padding: 12px; color: #999;">No alerts yet</p>';
+        return;
+      }
+      
+      messageListDiv.innerHTML = alerts.map(alert => {
+        let typeColor = "#667eea";
+        if (alert.type === "Emergency") typeColor = "#f44336";
+        if (alert.type === "Update") typeColor = "#4caf50";
+        
+        return `
+          <div class="message-item" style="border-left: 4px solid ${typeColor};">
+            <strong>${escapeHtml(alert.initials)}</strong>
+            ${alert.role ? `<span style="color:#666; font-size:12px;"> (${escapeHtml(alert.role)})</span>` : ''}
+            ${alert.student && alert.student !== "All" ? `<span style="color:#999; font-size:12px;"> → ${escapeHtml(alert.student)}</span>` : ''}
+            <p>${escapeHtml(alert.message)}</p>
+            <small>${alert.timestamp} • ${alert.type}</small>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ============================================
+    // SEND PUSH NOTIFICATIONS
+    // ============================================
+    
+    async function sendPushToAllDevices(title, body, alertData) {
+      const tokens = await getAllTokens();
+      
+      if (tokens.length === 0) {
+        addLog('⚠️ No devices have enabled notifications yet!');
+        showError('No devices registered. Ask team members to enable notifications first.');
+        return false;
+      }
+      
+      addLog(`📤 Sending push to ${tokens.length} devices...`);
+      
+      // Save alert to Firestore with all fields
+      await saveAlertToFirestore(
+        alertData.initials,
+        alertData.message,
+        alertData.role,
+        alertData.student,
+        alertData.type
+      );
+      
+      // Show local notification on this device
+      if (Notification.permission === 'granted') {
+        new Notification(title, {
+          body: body,
+          icon: '/Icon-192.png',
+          badge: '/Icon-192.png'
+        });
+        addLog(`📱 Local notification displayed: "${title}"`);
+      }
+      
+      addLog(`✅ Alert saved to Firestore. Other devices will see it in real-time!`);
+      
+      return true;
+    }
+
+    // ============================================
+    // ENABLE NOTIFICATIONS
+    // ============================================
+    
+    async function enableNotifications() {
+      addLog('🔔 Requesting notification permission...');
+      
+      try {
+        const permission = await Notification.requestPermission();
+        
+        if (permission === 'granted') {
+          addLog('✅ Permission granted');
+          
+          try {
+            const token = await getToken(messaging);
+            
+            if (token) {
+              currentFCMToken = token;
+              addLog(`✅ FCM Token received`);
+              
+              const saved = await saveTokenToFirestore(token);
+              
+              if (saved) {
+                updateStatus(true);
+                showSuccess('Notifications enabled! Your device is now registered.');
+                await getAllTokens();
+              } else {
+                throw new Error('Failed to save token');
+              }
+            } else {
+              throw new Error('No token received');
+            }
+          } catch (tokenError) {
+            addLog(`❌ Token error: ${tokenError.message}`, true);
+            updateStatus(false);
+            showError('Failed to get notification token.');
+          }
+        } else {
+          addLog(`❌ Permission denied`, true);
+          updateStatus(false);
+          showError('Please allow notifications.');
+        }
+      } catch (err) {
+        addLog(`❌ Error: ${err.message}`, true);
+        updateStatus(false);
+        showError(err.message);
+      }
+    }
+
+    // ============================================
+    // SEND ALERT
+    // ============================================
+    
+    async function sendAlert() {
+      const initials = initialsInput.value.trim();
+      const message = messageInput.value.trim();
+      const role = roleInput.value.trim();
+      const student = studentInput.value.trim();
+      const type = typeInput.value;
+      
+      if (!initials || !message) {
+        showError('Please enter both initials and message');
+        return;
+      }
+      
+      if (Notification.permission !== 'granted') {
+        showError('Please enable notifications first');
+        return;
+      }
+      
+      addLog(`📢 Sending alert from ${initials}: "${message.substring(0, 50)}..."`);
+      
+      const title = `📢 ${type} from ${initials}`;
+      const alertData = {
+        initials: initials,
+        message: message,
+        role: role,
+        student: student,
+        type: type
+      };
+      
+      await sendPushToAllDevices(title, message, alertData);
+      
+      // Clear input fields
+      initialsInput.value = '';
+      messageInput.value = '';
+      roleInput.value = '';
+      studentInput.value = '';
+      showSuccess(`Alert sent to team!`);
+    }
+
+    // ============================================
+    // TEST NOTIFICATION
+    // ============================================
+    
+    function testNotification() {
+      if (Notification.permission === 'granted') {
+        new Notification('Senwear Test', {
+          body: '✅ Notifications are working on this device!',
+          icon: '/Icon-192.png'
+        });
+        addLog('🔔 Test notification sent');
+        showSuccess('Test notification sent!');
+      } else {
+        showError('Please enable notifications first');
+      }
+    }
+
+    // ============================================
+    // FOREGROUND MESSAGES
+    // ============================================
+    
+    onMessage(messaging, (payload) => {
+      addLog(`📨 Foreground message received`);
+      if (payload.notification) {
+        new Notification(payload.notification.title, {
+          body: payload.notification.body,
+          icon: '/Icon-192.png'
+        });
+      }
+    });
+
+    // ============================================
+    // INITIALIZATION
+    // ============================================
+    
+    async function checkExistingStatus() {
+      addLog('🔍 Checking notification status...');
+      
+      loadAlertsFromFirestore();
+      await getAllTokens();
+      
+      if (Notification.permission === 'granted') {
+        addLog('✅ Notifications already enabled');
+        updateStatus(true);
+        
+        try {
+          const token = await getToken(messaging);
+          if (token) {
+            currentFCMToken = token;
+            await saveTokenToFirestore(token);
+          }
+        } catch (err) {
+          addLog(`⚠️ Token error: ${err.message}`, true);
+        }
+      } else if (Notification.permission === 'denied') {
+        addLog('❌ Notifications are blocked', true);
+        updateStatus(false);
+        showError('Notifications blocked. Check browser settings.');
+      } else {
+        addLog('⏳ Notifications not yet requested');
+        updateStatus(false);
+      }
+    }
+
+    // Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(() => addLog('✅ Service Worker registered'))
+        .catch(err => addLog(`❌ SW failed: ${err.message}`, true));
+    }
+
+    // Event listeners
+    enableBtn.addEventListener('click', enableNotifications);
+    testBtn.addEventListener('click', testNotification);
+    sendAlertBtn.addEventListener('click', sendAlert);
+
+    // Initialize
+    addLog('🚀 Senwear Team Pilot with Firestore initialized');
+    checkExistingStatus();
+    
+    if (!('Notification' in window)) {
+      addLog('❌ Notifications not supported', true);
+    }
+  </script>
+</body>
+</html>
