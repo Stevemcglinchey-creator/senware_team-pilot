@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SENwear Team Pilot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <link rel="manifest" href="manifest.json">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #0f2f24;
+      color: white;
+      padding: 20px;
+    }
+    .container { max-width: 600px; margin: auto; }
+    .card {
+      background: #1b3d32;
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 20px;
+      border: 1px solid #2f5e4c;
+    }
+    h1 { color: #7fe0b2; text-align: center; margin-bottom: 10px; }
+    h2 { color: #7fe0b2; font-size: 1.3rem; margin-bottom: 15px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 12px;
+      border: none;
+      background: #0f2f24;
+      color: white;
+      font-size: 15px;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      margin-top: 12px;
+      border-radius: 40px;
+      border: none;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .enable-btn {
+      background: #1f7a5c;
+      color: white;
+    }
+    .enable-btn.on {
+      background: #2fa46f;
+    }
+    .send-btn {
+      background: #2fa46f;
+      color: white;
+    }
+    .alert {
+      background: #274e41;
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+    .student-item {
+      background: #0f2f24;
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 8px;
+    }
+    .timestamp {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 6px;
+    }
+    .text-center { text-align: center; }
+    .mt-2 { margin-top: 10px; }
+    .error-msg {
+      color: #ff8888;
+      background: #3a1a1a;
+      padding: 10px;
+      border-radius: 10px;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>📡 SENwear Team Pilot</h1>
+      <p class="text-center">Internal staff communication + push notifications + CSV import</p>
+      <div class="text-center mt-2">
+        <button id="enableBtn" class="enable-btn">🔔 Enable Notifications</button>
+        <div id="notifyStatus" style="margin-top: 10px; font-size: 12px;"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📹 Video Walkthrough</h2>
+      <video controls style="width:100%; border-radius:12px;">
+        <source src="Team_Pilot.mp4" type="video/mp4">
+      </video>
+    </div>
+
+    <div class="card">
+      <h2>⚡ Quick Alert</h2>
+      <select id="role">
+        <option value="">Select role</option>
+        <option>SNA</option>
+        <option>Teacher</option>
+        <option>SENCO</option>
+        <option>VP / Principal</option>
+      </select>
+      <input id="initials" placeholder="Your initials (e.g. SM)" />
+      <input id="student" placeholder="Student initials (e.g. D.B)" />
+      <select id="type">
+        <option value="">Alert type</option>
+        <option>Health</option>
+        <option>Behaviour</option>
+        <option>Attendance</option>
+        <option>Academic</option>
+        <option>Needs-to-Know</option>
+      </select>
+      <textarea id="message" rows="3" placeholder="Type alert message"></textarea>
+      <button id="sendBtn" class="send-btn">Send Alert</button>
+      <div id="sendStatus" style="font-size:12px; margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>📡 Live Alerts</h2>
+      <div id="alertsList">Loading alerts...</div>
+    </div>
+
+    <div class="card">
+      <h2>💬 Feedback</h2>
+      <button id="feedbackBtn">Give Feedback (1 min)</button>
+    </div>
+
+    <div class="card">
+      <div style="background:#1f7a5c; padding:12px 16px; border-radius:40px; cursor:pointer;" id="csvToggle">
+        <span>📁 Student Management (CSV Import)</span>
+        <span style="float:right;">▼</span>
+      </div>
+      <div id="csvContent" style="display:none; margin-top:15px;">
+        <p>Upload CSV with columns: Initials, Year, MedicalFlags, Supports</p>
+        <input type="file" id="csvFile" accept=".csv">
+        <button id="importBtn">Import Students</button>
+        <div id="importStatus"></div>
+        <hr style="margin:15px 0; border-color:#2f5e4c;">
+        <h2>👥 Students</h2>
+        <div id="studentList">No students yet. Import a CSV file.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAFFgp4m6fCssJiswmIMA6RLJ0cskUrAVk",
+      authDomain: "senwear-team-pilot.firebaseapp.com",
+      projectId: "senwear-team-pilot",
+      storageBucket: "senwear-team-pilot.firebasestorage.app",
+      messagingSenderId: "2002144696",
+      appId: "1:2002144696:web:31f81e3c5c1764a290934d"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const messaging = firebase.messaging();
+    const VAPID_KEY = "BHHEkcdII53eQ2T8PkNe8ll7x21HfYUSqqadcrT4AdIi9h3HQL-5T3RUJjZwIMpantCdS4ewJOVpxGaDok8-qIk";
+
+    const enableBtn = document.getElementById('enableBtn');
+    const notifyStatus = document.getElementById('notifyStatus');
+    const sendBtn = document.getElementById('sendBtn');
+    const sendStatus = document.getElementById('sendStatus');
+    const alertsList = document.getElementById('alertsList');
+
+    let notificationEnabled = false;
+
+    function getDeviceId() {
+      let id = localStorage.getItem('device_id');
+      if (!id) {
+        id = 'device_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+        localStorage.setItem('device_id', id);
+      }
+      return id;
+    }
+
+    async function saveToken(token) {
+      try {
+        await db.collection('tokens').doc(getDeviceId()).set({
+          token: token,
+          lastActive: new Date().toISOString(),
+          userAgent: navigator.userAgent
+        });
+        console.log('Token saved');
+        return true;
+      } catch(e) {
+        console.error('Save token error:', e);
+        return false;
+      }
+    }
+
+    async function enableNotifications() {
+      if (!('Notification' in window)) {
+        notifyStatus.textContent = '❌ Not supported';
+        return;
+      }
+      
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          notificationEnabled = true;
+          enableBtn.textContent = '✅ Notifications ON';
+          enableBtn.classList.add('on');
+          notifyStatus.textContent = 'Ready to receive alerts';
+          
+          const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+          if (token) {
+            await saveToken(token);
+            console.log('FCM token received');
+          }
+        } else {
+          enableBtn.textContent = '🔔 Notifications Blocked';
+          notifyStatus.textContent = 'Please allow notifications in settings';
+        }
+      } catch(e) {
+        console.error('Enable error:', e);
+        notifyStatus.textContent = 'Error: ' + e.message;
+      }
+    }
+
+    messaging.onMessage((payload) => {
+      console.log('Message received:', payload);
+      if (payload.notification && Notification.permission === 'granted') {
+        try {
+          new Notification(payload.notification.title, {
+            body: payload.notification.body,
+            icon: '/Icon-192.png'
+          });
+        } catch(e) {
+          console.log('Notification error:', e);
+        }
+      }
+    });
+
+    sendBtn.onclick = async () => {
+      const role = document.getElementById('role').value;
+      const initials = document.getElementById('initials').value;
+      const student = document.getElementById('student').value;
+      const type = document.getElementById('type').value;
+      const message = document.getElementById('message').value;
+      
+      if (!role || !initials || !student || !type || !message) {
+        sendStatus.textContent = '⚠️ Please fill all fields';
+        sendStatus.style.color = '#ff8888';
+        setTimeout(() => sendStatus.textContent = '', 2000);
+        return;
+      }
+      
+      sendStatus.textContent = '📤 Sending...';
+      sendStatus.style.color = '#7fe0b2';
+      
+      try {
+        await db.collection('alerts').add({
+          role: role,
+          initials: initials.toUpperCase(),
+          student: student,
+          type: type,
+          message: message,
+          timestamp: Date.now(),
+          acknowledged: false
+        });
+        
+        sendStatus.textContent = '✅ Sent!';
+        sendStatus.style.color = '#7fe0b2';
+        document.getElementById('message').value = '';
+        setTimeout(() => sendStatus.textContent = '', 2000);
+        
+      } catch(e) {
+        console.error('Send error:', e);
+        sendStatus.textContent = '❌ Error: ' + e.message;
+        sendStatus.style.color = '#ff8888';
+      }
+    };
+
+    window.acknowledge = async (id) => {
+      try {
+        await db.collection('alerts').doc(id).update({ acknowledged: true });
+      } catch(e) {
+        console.error('Acknowledge error:', e);
+      }
+    };
+
+    db.collection('alerts')
+      .orderBy('timestamp', 'desc')
+      .onSnapshot(snapshot => {
+        if (snapshot.empty) {
+          alertsList.innerHTML = '<div class="alert">No alerts yet. Send one above!</div>';
+          return;
+        }
+        
+        let html = '';
+        const DAY_MS = 24 * 60 * 60 * 1000;
+        
+        snapshot.forEach(doc => {
+          const a = doc.data();
+          if (Date.now() - a.timestamp > DAY_MS) return;
+          html += `
+            <div class="alert">
+              <strong>${a.type || 'Alert'}</strong><br>
+              ${a.student} — ${a.message}<br>
+              <em>${a.role} (${a.initials})</em>
+              <div class="timestamp">${new Date(a.timestamp).toLocaleString()}</div>
+              ${!a.acknowledged ? `<button onclick="acknowledge('${doc.id}')" style="background:#355e50; margin-top:8px; padding:6px; font-size:12px;">✓ Acknowledge</button>` : ''}
+            </div>
+          `;
+        });
+        
+        alertsList.innerHTML = html || '<div class="alert">No alerts in last 24 hours.</div>';
+      }, error => {
+        alertsList.innerHTML = `<div class="error-msg">❌ Firestore error: ${error.message}</div>`;
+      });
+
+    document.getElementById('importBtn').onclick = () => {
+      const file = document.getElementById('csvFile').files[0];
+      if (!file) { document.getElementById('importStatus').textContent = 'Select a CSV file'; return; }
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const lines = e.target.result.split('\n').filter(l => l.trim());
+        if (lines.length < 2) return;
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        let success = 0;
+        for (let i = 1; i < lines.length; i++) {
+          const vals = lines[i].split(',');
+          const student = {};
+          headers.forEach((h, idx) => student[h] = vals[idx]?.trim());
+          if (student.initials) {
+            await db.collection('students').add(student);
+            success++;
+          }
+        }
+        document.getElementById('importStatus').textContent = `✅ Imported ${success} students`;
+        document.getElementById('csvFile').value = '';
+      };
+      reader.readAsText(file);
+    };
+
+    db.collection('students').onSnapshot(snapshot => {
+      const container = document.getElementById('studentList');
+      if (snapshot.empty) {
+        container.innerHTML = '<p>No students yet. Import a CSV file.</p>';
+        return;
+      }
+      let html = '';
+      snapshot.forEach(doc => {
+        const s = doc.data();
+        html += `<div class="student-item"><strong>${s.initials}</strong> · ${s.year || 'Year not set'}<br>🏥 ${s.medicalflags || 'No medical flags'}<br>🛡️ ${s.supports || 'No supports listed'}</div>`;
+      });
+      container.innerHTML = html;
+    });
+
+    document.getElementById('csvToggle').onclick = () => {
+      const content = document.getElementById('csvContent');
+      content.style.display = content.style.display === 'none' ? 'block' : 'none';
+    };
+
+    document.getElementById('feedbackBtn').onclick = () => {
+      window.open("https://docs.google.com/forms/d/e/1FAIpQLScL5SkWYIoPDhybgEU8flLw9TCZSI2nh0217NCoNiKym_UAOg/viewform", "_blank");
+    };
+
+    // FIXED SERVICE WORKER PATH - THIS IS THE ONLY CHANGE
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/senware_team-pilot/firebase-messaging-sw.js')
+        .then(reg => console.log('SW registered'))
+        .catch(err => console.log('SW error:', err));
+    }
+
+    if (Notification.permission === 'granted') {
+      notificationEnabled = true;
+      enableBtn.textContent = '✅ Notifications ON';
+      enableBtn.classList.add('on');
+      notifyStatus.textContent = 'Notifications enabled';
+      messaging.getToken({ vapidKey: VAPID_KEY }).then(t => t && saveToken(t)).catch(e => console.log(e));
+    } else {
+      enableBtn.onclick = enableNotifications;
+    }
+  </script>
+</body>
+</html>
