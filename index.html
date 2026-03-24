@@ -253,7 +253,7 @@
     };
 
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/firebase-messaging-sw.js')
+      navigator.serviceWorker.register('https://stevemcglinchey-creator.github.io/firebase-messaging-sw.js')
         .then(() => addDebug('Service Worker registered'))
         .catch(err => addDebug('SW error: ' + err.message));
     }
