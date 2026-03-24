@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SENwear Team Pilot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <link rel="manifest" href="manifest.json">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: #0f2f24; color: white; padding: 20px; }
+    .container { max-width: 600px; margin: auto; }
+    .card { background: #1b3d32; border-radius: 20px; padding: 20px; margin-bottom: 20px; border: 1px solid #2f5e4c; }
+    h1 { color: #7fe0b2; text-align: center; margin-bottom: 10px; }
+    h2 { color: #7fe0b2; font-size: 1.3rem; margin-bottom: 15px; }
+    input, select, textarea { width: 100%; padding: 12px; margin: 8px 0; border-radius: 12px; border: none; background: #0f2f24; color: white; }
+    button { width: 100%; padding: 14px; margin-top: 12px; border-radius: 40px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; }
+    .enable-btn { background: #1f7a5c; color: white; }
+    .enable-btn.on { background: #2fa46f; }
+    .send-btn { background: #2fa46f; color: white; }
+    .alert { background: #274e41; border-radius: 12px; padding: 12px; margin-top: 10px; }
+    .student-item { background: #0f2f24; border-radius: 12px; padding: 10px; margin-bottom: 8px; }
+    .timestamp { font-size: 11px; opacity: 0.7; margin-top: 6px; }
+    .text-center { text-align: center; }
+    .mt-2 { margin-top: 10px; }
+    .debug { background: #0a1a15; padding: 12px; border-radius: 12px; font-family: monospace; font-size: 11px; margin-top: 12px; white-space: pre-wrap; max-height: 150px; overflow-y: auto; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>📡 SENwear Team Pilot</h1>
+      <p class="text-center">Internal staff communication + push notifications + CSV import</p>
+      <div class="text-center mt-2">
+        <button id="enableBtn" class="enable-btn">🔔 Enable Notifications</button>
+        <div id="debugLog" class="debug">Ready. Click enable.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📹 Video Walkthrough</h2>
+      <video controls style="width:100%; border-radius:12px;"><source src="Team_Pilot.mp4" type="video/mp4"></video>
+    </div>
+
+    <div class="card">
+      <h2>⚡ Quick Alert</h2>
+      <select id="role"><option>SNA</option><option>Teacher</option><option>SENCO</option><option>VP</option></select>
+      <input id="initials" placeholder="Your initials" />
+      <input id="student" placeholder="Student initials" />
+      <select id="type"><option>Health</option><option>Behaviour</option><option>Attendance</option><option>Needs-to-Know</option></select>
+      <textarea id="message" rows="3" placeholder="Type alert message"></textarea>
+      <button id="sendBtn" class="send-btn">Send Alert</button>
+      <div id="sendStatus" style="font-size:12px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>📡 Live Alerts</h2>
+      <div id="alertsList">Loading...</div>
+    </div>
+
+    <div class="card">
+      <button id="feedbackBtn">Give Feedback</button>
+    </div>
+
+    <div class="card">
+      <div style="background:#1f7a5c; padding:12px; border-radius:40px; cursor:pointer; text-align:center;" id="csvToggle">📁 Student Management (CSV Import)</div>
+      <div id="csvContent" style="display:none; margin-top:15px;">
+        <input type="file" id="csvFile" accept=".csv">
+        <button id="importBtn">Import Students</button>
+        <div id="importStatus"></div>
+        <h2>👥 Students</h2>
+        <div id="studentList">No students</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyAFFgp4m6fCssJiswmIMA6RLJ0cskUrAVk",
+      authDomain: "senwear-team-pilot.firebaseapp.com",
+      projectId: "senwear-team-pilot",
+      storageBucket: "senwear-team-pilot.firebasestorage.app",
+      messagingSenderId: "2002144696",
+      appId: "1:2002144696:web:31f81e3c5c1764a290934d"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const messaging = firebase.messaging();
+
+    // YOUR CORRECT VAPID KEY FROM FIREBASE CONSOLE
+    const VAPID_KEY = "BHHEkcdll53eQ2T8PKNe8l7x21HfYUSqadcrT4Adi9h3HQL-5T3RUJjZwlMpantCdS4ewJOvpxGaDok8-qIk";
+
+    const enableBtn = document.getElementById('enableBtn');
+    const debugLog = document.getElementById('debugLog');
+    const sendBtn = document.getElementById('sendBtn');
+    const sendStatus = document.getElementById('sendStatus');
+    const alertsList = document.getElementById('alertsList');
+
+    function addDebug(msg) {
+      const p = document.createElement('div');
+      p.textContent = '> ' + new Date().toLocaleTimeString() + ': ' + msg;
+      debugLog.appendChild(p);
+      debugLog.scrollTop = debugLog.scrollHeight;
+      console.log(msg);
+    }
+
+    function getDeviceId() {
+      let id = localStorage.getItem('device_id');
+      if (!id) {
+        id = 'device_' + Date.now();
+        localStorage.setItem('device_id', id);
+      }
+      return id;
+    }
+
+    async function saveToken(token) {
+      addDebug('Saving token to Firestore...');
+      try {
+        await db.collection('tokens').doc(getDeviceId()).set({
+          token: token,
+          lastActive: new Date().toISOString(),
+          deviceId: getDeviceId()
+        });
+        addDebug('✅ TOKEN SAVED! Check Firestore for "tokens" collection');
+        return true;
+      } catch(e) {
+        addDebug('❌ Save failed: ' + e.message);
+        return false;
+      }
+    }
+
+    async function enableNotifications() {
+      addDebug('Step 1: Requesting permission...');
+      const permission = await Notification.requestPermission();
+      addDebug('Permission result: ' + permission);
+      
+      if (permission !== 'granted') {
+        addDebug('❌ Permission denied');
+        enableBtn.textContent = '🔔 Permission Denied';
+        return;
+      }
+      
+      addDebug('Step 2: Getting FCM token...');
+      try {
+        const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+        if (token) {
+          addDebug('✅ Token received: ' + token.substring(0, 30) + '...');
+          await saveToken(token);
+          enableBtn.textContent = '✅ Notifications ON';
+          enableBtn.classList.add('on');
+          addDebug('✅ All done! You will now receive notifications.');
+        } else {
+          addDebug('❌ No token received. Check VAPID key in Firebase Console.');
+        }
+      } catch(e) {
+        addDebug('❌ Token error: ' + e.message);
+      }
+    }
+
+    messaging.onMessage((payload) => {
+      addDebug('📨 Message received!');
+      if (payload.notification) {
+        new Notification(payload.notification.title, {
+          body: payload.notification.body
+        });
+      }
+    });
+
+    sendBtn.onclick = async () => {
+      const role = document.getElementById('role').value;
+      const initials = document.getElementById('initials').value;
+      const student = document.getElementById('student').value;
+      const type = document.getElementById('type').value;
+      const message = document.getElementById('message').value;
+      
+      if (!initials || !message) {
+        sendStatus.innerHTML = '⚠️ Fill initials and message';
+        setTimeout(() => sendStatus.innerHTML = '', 2000);
+        return;
+      }
+      
+      sendStatus.innerHTML = '📤 Sending...';
+      try {
+        await db.collection('alerts').add({
+          role, initials: initials.toUpperCase(), student, type, message,
+          timestamp: Date.now(),
+          acknowledged: false
+        });
+        sendStatus.innerHTML = '✅ Sent!';
+        document.getElementById('message').value = '';
+        setTimeout(() => sendStatus.innerHTML = '', 2000);
+        addDebug('Alert sent to Firestore');
+      } catch(e) {
+        sendStatus.innerHTML = '❌ Error: ' + e.message;
+      }
+    };
+
+    window.acknowledge = async (id) => {
+      await db.collection('alerts').doc(id).update({ acknowledged: true });
+    };
+
+    db.collection('alerts').orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+      if (snapshot.empty) { alertsList.innerHTML = '<div class="alert">No alerts</div>'; return; }
+      let html = '';
+      snapshot.forEach(doc => {
+        const a = doc.data();
+        if (Date.now() - a.timestamp > 86400000) return;
+        html += `<div class="alert"><strong>${a.type}</strong><br>${a.student} — ${a.message}<br><em>${a.role} (${a.initials})</em><div class="timestamp">${new Date(a.timestamp).toLocaleTimeString()}</div>${!a.acknowledged ? `<button onclick="acknowledge('${doc.id}')" style="background:#355e50; margin-top:8px; padding:6px;">✓ Acknowledge</button>` : ''}</div>`;
+      });
+      alertsList.innerHTML = html;
+    });
+
+    document.getElementById('importBtn').onclick = () => {
+      const file = document.getElementById('csvFile').files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const lines = e.target.result.split('\n');
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+        for (let i = 1; i < lines.length; i++) {
+          const vals = lines[i].split(',');
+          const student = {};
+          headers.forEach((h, idx) => student[h] = vals[idx]?.trim());
+          if (student.initials) await db.collection('students').add(student);
+        }
+        document.getElementById('importStatus').textContent = '✅ Imported';
+      };
+      reader.readAsText(file);
+    };
+
+    db.collection('students').onSnapshot(snapshot => {
+      const container = document.getElementById('studentList');
+      if (snapshot.empty) { container.innerHTML = 'No students'; return; }
+      let html = '';
+      snapshot.forEach(doc => {
+        const s = doc.data();
+        html += `<div class="student-item"><strong>${s.initials}</strong> · ${s.year || 'Year?'}<br>🏥 ${s.medicalflags || 'None'}<br>🛡️ ${s.supports || 'None'}</div>`;
+      });
+      container.innerHTML = html;
+    });
+
+    document.getElementById('csvToggle').onclick = () => {
+      const content = document.getElementById('csvContent');
+      content.style.display = content.style.display === 'none' ? 'block' : 'none';
+    };
+
+    document.getElementById('feedbackBtn').onclick = () => {
+      window.open("https://docs.google.com/forms/d/e/1FAIpQLScL5SkWYIoPDhybgEU8flLw9TCZSI2nh0217NCoNiKym_UAOg/viewform", "_blank");
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/firebase-messaging-sw.js')
+        .then(() => addDebug('Service Worker registered'))
+        .catch(err => addDebug('SW error: ' + err.message));
+    }
+
+    addDebug('App loaded. Click "Enable Notifications"');
+    enableBtn.onclick = enableNotifications;
+  </script>
+</body>
+</html>
