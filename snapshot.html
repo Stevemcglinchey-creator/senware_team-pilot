@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>SENwear – Student Snapshot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: #f5f7fb;
+      color: #1e293b;
+      padding: 20px;
+    }
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 32px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      border: 1px solid #eef2f6;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .student-name {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #1a5f4c;
+    }
+    .edit-icon {
+      color: #64748b;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .meta {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-bottom: 16px;
+    }
+    .risk-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 40px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      margin-right: 8px;
+    }
+    .risk-high { background: #fee2e2; color: #b91c1c; }
+    .risk-medium { background: #fff3e3; color: #b45309; }
+    .risk-low { background: #e0f2fe; color: #075985; }
+    .section-title {
+      font-weight: 600;
+      font-size: 1rem;
+      margin: 16px 0 8px;
+      color: #0f172a;
+      border-left: 3px solid #1a5f4c;
+      padding-left: 10px;
+    }
+    .priority-box {
+      background: #fef9e3;
+      border-left: 4px solid #f59e0b;
+      padding: 12px;
+      border-radius: 16px;
+      margin: 8px 0;
+    }
+    .do-not-box {
+      background: #fee2e2;
+      border-left: 4px solid #dc2626;
+      padding: 12px;
+      border-radius: 16px;
+      margin: 8px 0;
+    }
+    .list-bullet {
+      margin-left: 20px;
+      margin-top: 6px;
+    }
+    .list-bullet li {
+      margin-bottom: 4px;
+    }
+    .button-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .btn {
+      flex: 1;
+      background: #1a5f4c;
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 60px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+    .btn-secondary {
+      background: #e2e8f0;
+      color: #1e293b;
+    }
+    .handover-output {
+      background: #f1f5f9;
+      padding: 12px;
+      border-radius: 16px;
+      margin-top: 12px;
+      font-family: monospace;
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+      display: none;
+    }
+    .footer-note {
+      font-size: 0.7rem;
+      color: #94a3b8;
+      text-align: center;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+<div class="container" id="snapshotContainer">
+  <div class="card" id="loadingCard">
+    <p>Loading student data...</p>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+  // Firebase config (same as main app)
+  const firebaseConfig = {
+    apiKey: "AIzaSyDbruzYo2ln8XY9MqTqXVkSsKUodeEux1U",
+    authDomain: "senwear-pilot-2.firebaseapp.com",
+    projectId: "senwear-pilot-2",
+    storageBucket: "senwear-pilot-2.firebasestorage.app",
+    messagingSenderId: "926491466146",
+    appId: "1:926491466146:web:1148a3e80ebeef3b15fafb"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  // Get studentId from URL parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const studentId = urlParams.get('studentId');
+
+  if (!studentId) {
+    document.getElementById('snapshotContainer').innerHTML = '<div class="card"><p>❌ No student selected. Please go back to the app.</p></div>';
+  } else {
+    loadSnapshot(studentId);
+  }
+
+  async function loadSnapshot(studentId) {
+    try {
+      const studentDoc = await db.collection('students').doc(studentId).get();
+      if (!studentDoc.exists) throw new Error('Student not found');
+      const student = studentDoc.data();
+
+      // Fetch recent alerts for this student (limit 5)
+      const alertsQuery = await db.collection('alerts')
+        .where('student', '==', student.initials)
+        .orderBy('timestamp', 'desc')
+        .limit(5)
+        .get();
+      const recentAlerts = [];
+      alertsQuery.forEach(doc => recentAlerts.push(doc.data()));
+
+      renderSnapshot(student, recentAlerts, studentDoc.id);
+    } catch (err) {
+      document.getElementById('snapshotContainer').innerHTML = `<div class="card"><p>❌ Error loading snapshot: ${err.message}</p></div>`;
+    }
+  }
+
+  function renderSnapshot(student, recentAlerts, docId) {
+    function formatArray(arr) {
+      if (!arr || arr.length === 0) return '<p><em>None provided</em></p>';
+      let html = '<ul class="list-bullet">';
+      arr.forEach(item => html += `<li>${escapeHtml(item)}</li>`);
+      html += '</ul>';
+      return html;
+    }
+    function formatText(text) {
+      if (!text) return '<p><em>None provided</em></p>';
+      return `<p>${escapeHtml(text)}</p>`;
+    }
+    function getRiskBadge(level) {
+      const risk = level || 'low';
+      if (risk === 'high') return '<span class="risk-badge risk-high">🔴 High risk</span>';
+      if (risk === 'medium') return '<span class="risk-badge risk-medium">🟠 Medium risk</span>';
+      return '<span class="risk-badge risk-low">🟢 Low risk</span>';
+    }
+
+    const todayPriority = student.todayPriority || '';
+    const doNot = student.doNot || [];
+    const earlySigns = student.earlyWarningSigns || [];
+    const strategies = student.strategies || [];
+    const passport = student.passport || '';
+    const sensory = student.sensoryNeeds || '';
+    const communication = student.communication || '';
+    const typicalLocations = student.typicalLocations || [];
+    let keyStaff = '';
+    if (student.keyStaff) {
+      if (typeof student.keyStaff === 'object') {
+        keyStaff = `<li>Class teacher: ${escapeHtml(student.keyStaff.classTeacher || '?')}</li><li>SENCO: ${escapeHtml(student.keyStaff.senco || '?')}</li>`;
+      } else if (Array.isArray(student.keyStaff)) {
+        keyStaff = formatArray(student.keyStaff);
+      }
+    }
+    const lastUpdated = student.lastUpdated ? new Date(student.lastUpdated.toDate()).toLocaleDateString() : 'unknown';
+    const lastUpdatedBy = student.lastUpdatedBy || '?';
+    const riskLevel = student.riskLevel || 'low';
+    const initials = student.initials || '?';
+    const year = student.year || '';
+
+    const html = `
+      <div class="card">
+        <div class="header">
+          <span class="student-name">${escapeHtml(initials)}${year ? ` – ${escapeHtml(year)}` : ''}</span>
+          <span class="edit-icon" onclick="alert('Edit feature coming soon')">✏️ Edit</span>
+        </div>
+        <div class="meta">
+          SNA: ${escapeHtml(student.assignedSNA || '?')}<br>
+          Last updated: ${lastUpdated} – ${escapeHtml(lastUpdatedBy)}
+          <br>${getRiskBadge(riskLevel)}
+        </div>
+
+        <div class="priority-box">
+          <strong>🚨 Today’s Priority:</strong><br>
+          ${formatText(todayPriority)}
+        </div>
+
+        <div class="section-title">🩺 Support Needs</div>
+        ${formatText(student.supportNeeds || student.diagnosis || '')}
+
+        <div class="do-not-box">
+          <strong>⚠️ Do NOT:</strong>
+          ${formatArray(doNot)}
+        </div>
+
+        <div class="section-title">🧠 Early Warning Signs</div>
+        ${formatArray(earlySigns)}
+
+        <div class="section-title">🛠️ Strategies</div>
+        ${formatArray(strategies)}
+
+        <div class="section-title">📝 Passport</div>
+        ${formatText(passport)}
+
+        ${sensory ? `<div class="section-title">👂 Sensory Needs</div>${formatText(sensory)}` : ''}
+        ${communication ? `<div class="section-title">💬 Communication</div>${formatText(communication)}` : ''}
+
+        <div class="section-title">📍 Typical Locations</div>
+        ${formatArray(typicalLocations)}
+
+        <div class="section-title">👥 Key Staff</div>
+        <ul class="list-bullet">${keyStaff || '<li>None listed</li>'}</ul>
+
+        <div class="section-title">📋 Recent alerts (last 5)</div>
+        <ul class="list-bullet">
+          ${recentAlerts.map(a => `<li>${new Date(a.timestamp).toLocaleDateString()} – ${a.type}: ${escapeHtml(a.message)}</li>`).join('') || '<li>No recent alerts</li>'}
+        </ul>
+
+        <div class="button-row">
+          <button class="btn" onclick="sendAlertForStudent('${escapeHtml(initials)}')">➕ Send alert about this student</button>
+          <button class="btn btn-secondary" onclick="generateHandover()">📄 Auto Handover Summary</button>
+        </div>
+        <div id="handoverOutput" class="handover-output"></div>
+      </div>
+      <div class="footer-note">
+        ℹ️ Note: Information reflects current understanding and may be updated. Staff should always use professional judgement.
+      </div>
+    `;
+    document.getElementById('snapshotContainer').innerHTML = html;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    });
+  }
+
+  // Placeholder functions – to be implemented later
+  window.sendAlertForStudent = function(initials) {
+    alert(`Send alert for ${initials} – will redirect to main app. (Coming soon)`);
+  };
+  window.generateHandover = function() {
+    alert('Handover summary will appear here. (Feature in progress)');
+  };
+</script>
+</body>
+</html>
