@@ -1,0 +1,559 @@
+
+  <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#1a5f4c">
+  <title>SENwear | School Pilot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui; background: #f5f7fb; color: #1e293b; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .card {
+      background: white;
+      border-radius: 24px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      border: 1px solid #eef2f6;
+    }
+    .blood-history-card {
+      background: white;
+      border-radius: 24px;
+      margin-bottom: 20px;
+      border: 1px solid #eef2f6;
+      overflow: hidden;
+    }
+    .blood-history-header {
+      background: #f8fafc;
+      padding: 16px 20px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      font-weight: 600;
+    }
+    .blood-history-content {
+      display: none;
+      padding: 20px;
+      max-height: 400px;
+      overflow-y: auto;
+      border-top: 1px solid #eef2f6;
+    }
+    .blood-history-content.show { display: block; }
+    .blood-log-entry {
+      padding: 10px 0;
+      border-bottom: 1px solid #eef2f6;
+      font-size: 0.85rem;
+    }
+    .header h1 { color: #1a5f4c; font-size: 1.8rem; text-align: center; margin-bottom: 8px; }
+    .badge {
+      background: #e6f7f3;
+      color: #1a5f4c;
+      padding: 4px 12px;
+      border-radius: 40px;
+      font-size: 0.7rem;
+      display: inline-block;
+      margin-bottom: 20px;
+      text-align: center;
+      width: fit-content;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .auth-container {
+      max-width: 400px;
+      margin: 80px auto;
+      padding: 32px;
+      background: white;
+      border-radius: 32px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+    }
+    .auth-container h2 { color: #1a5f4c; text-align: center; margin-bottom: 24px; }
+    .auth-container input { width: 100%; padding: 12px; margin-bottom: 16px; border: 1px solid #e2e8f0; border-radius: 16px; }
+    .auth-container button { width: 100%; padding: 12px; background: #1a5f4c; color: white; border: none; border-radius: 60px; font-weight: 600; cursor: pointer; margin-bottom: 12px; }
+    .auth-container .toggle-btn { background: none; color: #1a5f4c; border: 1px solid #1a5f4c; }
+    .error-msg { color: #dc2626; font-size: 0.85rem; text-align: center; margin-top: 12px; }
+    .main-app { display: none; }
+    .form-group { margin-bottom: 20px; }
+    label { display: block; font-weight: 500; font-size: 0.85rem; margin-bottom: 6px; color: #475569; }
+    input, select, textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      font-size: 0.95rem;
+      font-family: inherit;
+    }
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #1a5f4c;
+      color: white;
+      border: none;
+      border-radius: 60px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .blood-btn { background: #3b82f6; }
+    .ack-btn {
+      background: #e2e8f0;
+      border: none;
+      border-radius: 40px;
+      padding: 6px 12px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .alert-item {
+      background: #f8fafc;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+      border-left: 4px solid #1a5f4c;
+    }
+    .alert-item.acknowledged { opacity: 0.7; border-left-color: #94a3b8; }
+    .alert-time { font-size: 0.7rem; color: #94a3b8; margin-bottom: 6px; }
+    .alert-student {
+      font-weight: 700;
+      color: #1a5f4c;
+      cursor: pointer;
+      text-decoration: underline;
+      display: inline-block;
+    }
+    .alert-message { font-size: 0.9rem; margin: 6px 0; }
+    .alert-sender { font-size: 0.7rem; color: #64748b; }
+    .hover-card {
+      position: fixed;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 14px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+      width: 260px;
+      z-index: 1000;
+      pointer-events: none;
+      font-size: 0.8rem;
+    }
+    .hover-card h4 { margin: 0 0 8px 0; color: #1a5f4c; }
+    .hover-card p { margin: 4px 0; }
+    .footer { text-align: center; font-size: 0.7rem; color: #94a3b8; margin-top: 20px; }
+    .logout-btn {
+      background: #e2e8f0;
+      color: #1e293b;
+      border: none;
+      border-radius: 40px;
+      padding: 8px 16px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      margin-bottom: 16px;
+      width: auto;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Auth Container -->
+<div id="authContainer" class="auth-container">
+  <h2>🔐 SENwear</h2>
+  <div id="authError" class="error-msg"></div>
+  <input type="email" id="emailInput" placeholder="school email">
+  <input type="password" id="passwordInput" placeholder="password">
+  <button id="signInBtn">Sign In</button>
+  <button id="signUpBtn" class="toggle-btn">Create Account</button>
+</div>
+
+<!-- Main App (hidden until logged in) -->
+<div id="mainApp" class="main-app">
+  <div style="display: flex; justify-content: flex-end;">
+    <button id="logoutBtn" class="logout-btn">🚪 Sign Out</button>
+  </div>
+  <div class="header">
+    <h1>📡 SENwear</h1>
+    <div class="badge">School Pilot</div>
+  </div>
+
+  <!-- Profile Setup (first login only) -->
+  <div class="card" id="profileCard">
+    <h2>👤 Your profile</h2>
+    <div class="form-group">
+      <label>Your role</label>
+      <div class="role-group" style="display: flex; gap: 12px; flex-wrap: wrap;">
+        <button type="button" class="role-btn" data-role="SNA">SNA</button>
+        <button type="button" class="role-btn" data-role="VP">VP</button>
+        <button type="button" class="role-btn" data-role="SENCO">SENCO</button>
+        <button type="button" class="role-btn" data-role="Principal">Principal</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Your name</label>
+      <input type="text" id="staffName" placeholder="e.g., Kelly">
+    </div>
+    <button id="saveProfileBtn">Save profile</button>
+    <div id="profileStatus"></div>
+  </div>
+
+  <!-- Quick Alert -->
+  <div class="card" id="alertCard" style="display: none;">
+    <h2>⚡ Quick Alert</h2>
+    <div class="form-group">
+      <label>Student</label>
+      <select id="studentSelect"><option>Select student</option></select>
+    </div>
+    <div class="form-group">
+      <label>Alert type</label>
+      <select id="type">
+        <option>Health</option><option>Behaviour</option><option>Attendance</option><option>Academic</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Message</label>
+      <textarea id="message" rows="3"></textarea>
+    </div>
+    <button id="sendAlertBtn">📢 Send Alert</button>
+    <div id="sendStatus" style="font-size:0.75rem; margin-top:12px;"></div>
+  </div>
+
+  <!-- Live Alerts -->
+  <div class="card" id="liveAlertsCard" style="display: none;">
+    <h2>📡 Live Alerts</h2>
+    <div id="alertsList"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- New Blood Reading -->
+  <div class="card" id="bloodCard" style="display: none;">
+    <h2>🩸 New Blood Reading</h2>
+    <div class="form-group">
+      <label>Student (Type 1)</label>
+      <select id="bloodStudentSelect"><option>Select student</option></select>
+    </div>
+    <div class="form-group">
+      <label>Reading (mmol/L)</label>
+      <input type="text" id="bloodReading" placeholder="e.g., 5.2">
+    </div>
+    <div class="form-group">
+      <label>Notes</label>
+      <input type="text" id="bloodNotes" placeholder="e.g., Before lunch">
+    </div>
+    <button id="saveBloodBtn" class="blood-btn">💾 Save Reading</button>
+    <div id="bloodStatus"></div>
+  </div>
+
+  <!-- Blood History -->
+  <div class="blood-history-card" id="bloodHistoryCard" style="display: none;">
+    <div class="blood-history-header" id="bloodHistoryHeader">
+      <span>🩸 Blood Glucose History</span><span>▼</span>
+    </div>
+    <div class="blood-history-content" id="bloodHistoryContent"><div class="loading">Loading...</div></div>
+  </div>
+
+  <div class="footer">SENwear • Secure school platform</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script>
+  // Firebase config (replace with your own or use env vars)
+  const firebaseConfig = {
+    apiKey: "AIzaSyDbruzYo2ln8XY9MqTqXVkSsKUodeEux1U",
+    authDomain: "senwear-pilot-2.firebaseapp.com",
+    projectId: "senwear-pilot-2",
+    storageBucket: "senwear-pilot-2.firebasestorage.app",
+    messagingSenderId: "926491466146",
+    appId: "1:926491466146:web:1148a3e80ebeef3b15fafb"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  // DOM elements
+  const authContainer = document.getElementById('authContainer');
+  const mainApp = document.getElementById('mainApp');
+  const emailInput = document.getElementById('emailInput');
+  const passwordInput = document.getElementById('passwordInput');
+  const signInBtn = document.getElementById('signInBtn');
+  const signUpBtn = document.getElementById('signUpBtn');
+  const logoutBtn = document.getElementById('logoutBtn');
+  const authError = document.getElementById('authError');
+
+  let currentUser = null;
+  let currentSchoolId = null;  // will be 'stcolumbas' for now
+  let currentUserRole = null;
+  let currentUserName = null;
+
+  // Hover card
+  const hoverCard = document.createElement('div');
+  hoverCard.className = 'hover-card';
+  hoverCard.style.display = 'none';
+  document.body.appendChild(hoverCard);
+  let hoverTimeout;
+
+  function showHoverCard(event, studentId) {
+    // Fetch student data from Firestore (simplified: you can preload or query)
+    db.collection('schools').doc(currentSchoolId).collection('students').doc(studentId).get().then(doc => {
+      if (!doc.exists) return;
+      const data = doc.data();
+      hoverCard.innerHTML = `
+        <h4>${data.fullName || studentId}</h4>
+        <p><strong>🩺 Medical:</strong> ${(data.medicalFlags || []).join(', ') || 'None'}</p>
+        <p><strong>⚠️ Triggers:</strong> ${(data.triggers || []).join(', ') || 'None'}</p>
+        <p><strong>✅ Strategies:</strong> ${(data.strategies || []).join(', ') || 'None'}</p>
+        <p><strong>👥 Key staff:</strong> ${(data.keyStaff || []).join(', ') || 'None'}</p>
+        <p><strong>📍 Locations:</strong> ${(data.typicalLocations || []).join(', ') || 'None'}</p>
+      `;
+      hoverCard.style.display = 'block';
+      const rect = event.target.getBoundingClientRect();
+      let left = rect.right + 8;
+      let top = rect.top;
+      if (left + 260 > window.innerWidth) left = rect.left - 268;
+      if (top + 200 > window.innerHeight) top = window.innerHeight - 210;
+      hoverCard.style.left = left + 'px';
+      hoverCard.style.top = top + 'px';
+    }).catch(err => console.error(err));
+  }
+
+  function attachHoverListeners() {
+    document.querySelectorAll('.alert-student').forEach(el => {
+      el.removeEventListener('mouseenter', el._hoverEnter);
+      el.removeEventListener('mouseleave', el._hoverLeave);
+      const enterHandler = (e) => {
+        clearTimeout(hoverTimeout);
+        const studentId = e.currentTarget.getAttribute('data-student-id');
+        if (studentId) showHoverCard(e, studentId);
+      };
+      const leaveHandler = () => {
+        hoverTimeout = setTimeout(() => { hoverCard.style.display = 'none'; }, 150);
+      };
+      el._hoverEnter = enterHandler;
+      el._hoverLeave = leaveHandler;
+      el.addEventListener('mouseenter', enterHandler);
+      el.addEventListener('mouseleave', leaveHandler);
+    });
+  }
+
+  // Auth state listener
+  auth.onAuthStateChanged(async (user) => {
+    if (user) {
+      currentUser = user;
+      authContainer.style.display = 'none';
+      mainApp.style.display = 'block';
+      // For this pilot, schoolId is fixed to 'stcolumbas'
+      currentSchoolId = 'stcolumbas';
+      // Check if staff document exists (security rule will also check)
+      const staffDoc = await db.collection('schools').doc(currentSchoolId).collection('staff').doc(user.uid).get();
+      if (staffDoc.exists) {
+        currentUserRole = staffDoc.data().role;
+        currentUserName = staffDoc.data().name;
+        // Show all features
+        document.getElementById('profileCard').style.display = 'none';
+        document.getElementById('alertCard').style.display = 'block';
+        document.getElementById('liveAlertsCard').style.display = 'block';
+        document.getElementById('bloodCard').style.display = 'block';
+        document.getElementById('bloodHistoryCard').style.display = 'block';
+        loadStudents();
+        loadAlerts();
+        loadBloodHistory();
+      } else {
+        // First login – show profile setup
+        document.getElementById('profileCard').style.display = 'block';
+        document.getElementById('alertCard').style.display = 'none';
+        document.getElementById('liveAlertsCard').style.display = 'none';
+        document.getElementById('bloodCard').style.display = 'none';
+        document.getElementById('bloodHistoryCard').style.display = 'none';
+        setupProfileSave();
+      }
+    } else {
+      authContainer.style.display = 'block';
+      mainApp.style.display = 'none';
+      currentUser = null;
+    }
+  });
+
+  signInBtn.onclick = async () => {
+    try {
+      await auth.signInWithEmailAndPassword(emailInput.value, passwordInput.value);
+    } catch (err) { authError.textContent = err.message; }
+  };
+  signUpBtn.onclick = async () => {
+    try {
+      await auth.createUserWithEmailAndPassword(emailInput.value, passwordInput.value);
+    } catch (err) { authError.textContent = err.message; }
+  };
+  logoutBtn.onclick = () => auth.signOut();
+
+  function setupProfileSave() {
+    const saveBtn = document.getElementById('saveProfileBtn');
+    const roleBtns = document.querySelectorAll('.role-btn');
+    let selectedRole = null;
+    roleBtns.forEach(btn => {
+      btn.onclick = () => {
+        roleBtns.forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        selectedRole = btn.getAttribute('data-role');
+      };
+    });
+    saveBtn.onclick = async () => {
+      const name = document.getElementById('staffName').value.trim();
+      if (!selectedRole || !name) {
+        document.getElementById('profileStatus').textContent = 'Role and name required';
+        return;
+      }
+      // Create staff document
+      await db.collection('schools').doc(currentSchoolId).collection('staff').doc(currentUser.uid).set({
+        name: name,
+        role: selectedRole,
+        email: currentUser.email,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      currentUserRole = selectedRole;
+      currentUserName = name;
+      document.getElementById('profileCard').style.display = 'none';
+      document.getElementById('alertCard').style.display = 'block';
+      document.getElementById('liveAlertsCard').style.display = 'block';
+      document.getElementById('bloodCard').style.display = 'block';
+      document.getElementById('bloodHistoryCard').style.display = 'block';
+      loadStudents();
+      loadAlerts();
+      loadBloodHistory();
+    };
+  }
+
+  async function loadStudents() {
+    const snapshot = await db.collection('schools').doc(currentSchoolId).collection('students').get();
+    const students = [];
+    snapshot.forEach(doc => students.push({ id: doc.id, ...doc.data() }));
+    const studentSelect = document.getElementById('studentSelect');
+    const bloodSelect = document.getElementById('bloodStudentSelect');
+    if (studentSelect) {
+      studentSelect.innerHTML = '<option disabled selected>Select student</option>';
+      students.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${s.initials || s.id} – ${s.fullName || ''} (${s.year || ''})`;
+        studentSelect.appendChild(opt);
+      });
+    }
+    if (bloodSelect) {
+      bloodSelect.innerHTML = '<option disabled selected>Select student</option>';
+      students.filter(s => s.bloodGlucoseRequired).forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${s.initials || s.id} – ${s.fullName || ''} (${s.year || ''})`;
+        bloodSelect.appendChild(opt);
+      });
+    }
+  }
+
+  function loadAlerts() {
+    db.collection('schools').doc(currentSchoolId).collection('alerts')
+      .orderBy('timestamp', 'desc')
+      .onSnapshot(snapshot => {
+        const container = document.getElementById('alertsList');
+        if (snapshot.empty) { container.innerHTML = '<div class="loading">No alerts</div>'; return; }
+        let html = '';
+        snapshot.forEach(doc => {
+          const a = doc.data();
+          if (Date.now() - a.timestamp > 86400000) return;
+          const date = new Date(a.timestamp).toLocaleTimeString();
+          const ackClass = a.acknowledged ? 'acknowledged' : '';
+          html += `
+            <div class="alert-item ${ackClass}">
+              <div class="alert-time">${date}</div>
+              <span class="alert-student" data-student-id="${a.studentId}">${a.studentName}</span>
+              <span style="background:#eef2ff; padding:2px 8px; border-radius:20px;">${a.type}</span>
+              <div class="alert-message">${a.message}</div>
+              <div class="alert-sender">— ${a.senderName} (${a.senderRole})</div>
+              ${!a.acknowledged ? `<button class="ack-btn" onclick="acknowledgeAlert('${doc.id}')">✓ Acknowledge</button>` : ''}
+            </div>
+          `;
+        });
+        container.innerHTML = html;
+        attachHoverListeners();
+      });
+  }
+
+  window.acknowledgeAlert = async (alertId) => {
+    await db.collection('schools').doc(currentSchoolId).collection('alerts').doc(alertId).update({ acknowledged: true });
+  };
+
+  document.getElementById('sendAlertBtn').onclick = async () => {
+    const studentId = document.getElementById('studentSelect').value;
+    const type = document.getElementById('type').value;
+    const message = document.getElementById('message').value.trim();
+    if (!studentId || !message) { alert('Select student and enter message'); return; }
+    // Get student name
+    const studentDoc = await db.collection('schools').doc(currentSchoolId).collection('students').doc(studentId).get();
+    const studentName = studentDoc.data()?.fullName || studentId;
+    await db.collection('schools').doc(currentSchoolId).collection('alerts').add({
+      studentId: studentId,
+      studentName: studentName,
+      type: type,
+      message: message,
+      senderName: currentUserName,
+      senderRole: currentUserRole,
+      timestamp: Date.now(),
+      acknowledged: false
+    });
+    document.getElementById('message').value = '';
+    document.getElementById('sendStatus').innerHTML = '✅ Sent';
+    setTimeout(() => document.getElementById('sendStatus').innerHTML = '', 2000);
+  };
+
+  document.getElementById('saveBloodBtn').onclick = async () => {
+    const studentId = document.getElementById('bloodStudentSelect').value;
+    const reading = document.getElementById('bloodReading').value.trim();
+    const notes = document.getElementById('bloodNotes').value.trim();
+    if (!studentId || !reading) { alert('Select student and enter reading'); return; }
+    const studentDoc = await db.collection('schools').doc(currentSchoolId).collection('students').doc(studentId).get();
+    const studentName = studentDoc.data()?.fullName || studentId;
+    await db.collection('schools').doc(currentSchoolId).collection('bloodLogs').add({
+      studentId: studentId,
+      studentName: studentName,
+      reading: reading,
+      notes: notes,
+      recordedBy: currentUserName,
+      timestamp: Date.now()
+    });
+    document.getElementById('bloodStatus').innerHTML = '✅ Saved';
+    document.getElementById('bloodReading').value = '';
+    document.getElementById('bloodNotes').value = '';
+    setTimeout(() => document.getElementById('bloodStatus').innerHTML = '', 2000);
+    loadBloodHistory();
+  };
+
+  function loadBloodHistory() {
+    db.collection('schools').doc(currentSchoolId).collection('bloodLogs')
+      .orderBy('timestamp', 'desc')
+      .limit(50)
+      .onSnapshot(snapshot => {
+        const container = document.getElementById('bloodHistoryContent');
+        if (snapshot.empty) { container.innerHTML = '<div>No blood readings yet</div>'; return; }
+        let html = '';
+        snapshot.forEach(doc => {
+          const b = doc.data();
+          const date = new Date(b.timestamp).toLocaleDateString();
+          const time = new Date(b.timestamp).toLocaleTimeString();
+          html += `<div class="blood-log-entry"><strong>${date} ${time}</strong> – <span class="alert-student" data-student-id="${b.studentId}">${b.studentName}</span> – ${b.reading} mmol/L – ${b.recordedBy}${b.notes ? ` (${b.notes})` : ''}</div>`;
+        });
+        container.innerHTML = html;
+        attachHoverListeners();
+      });
+  }
+
+  document.getElementById('bloodHistoryHeader').onclick = () => {
+    const content = document.getElementById('bloodHistoryContent');
+    const isOpen = content.classList.contains('show');
+    content.classList.toggle('show');
+    document.getElementById('bloodHistoryHeader').querySelector('span:last-child').textContent = isOpen ? '▼' : '▲';
+  };
+
+  // Role button styles (add if not already)
+  const style = document.createElement('style');
+  style.textContent = `.role-btn { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 60px; padding: 8px 20px; cursor: pointer; } .role-btn.selected { background: #1a5f4c; border-color: #1a5f4c; color: white; }`;
+  document.head.appendChild(style);
+</script>
+</body>
+</html>
