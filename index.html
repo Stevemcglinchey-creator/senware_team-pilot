@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>SENwear</title>
+  <link rel="manifest" href="/manifest.json">
+  <style>
+    * { box-sizing: border-box; margin: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f7fb; margin: 0; padding: 20px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    .auth-container { max-width: 400px; margin: 80px auto; background: white; padding: 32px; border-radius: 32px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .auth-container h2 { text-align: center; color: #1a5f4c; margin-bottom: 24px; }
+    .auth-container input, .auth-container button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 60px; border: 1px solid #ddd; }
+    .auth-container button { background: #1a5f4c; color: white; border: none; font-weight: bold; cursor: pointer; }
+    .toggle-btn { background: none !important; color: #1a5f4c !important; border: 1px solid #1a5f4c !important; }
+    .main-app { display: none; }
+    .card { background: white; border-radius: 24px; padding: 20px; margin-bottom: 20px; border: 1px solid #eef2f6; }
+    .blood-history-card { background: white; border-radius: 24px; margin-bottom: 20px; border: 1px solid #eef2f6; overflow: hidden; }
+    .blood-history-header { background: #f8fafc; padding: 16px; cursor: pointer; display: flex; justify-content: space-between; font-weight: bold; }
+    .blood-history-content { display: none; padding: 16px; max-height: 300px; overflow-y: auto; }
+    .show { display: block; }
+    .alert-item { background: #f8fafc; border-radius: 16px; padding: 16px; margin-bottom: 12px; border-left: 4px solid #1a5f4c; }
+    .alert-item.acknowledged { opacity: 0.6; border-left-color: #94a3b8; }
+    .alert-student { font-weight: bold; color: #1a5f4c; cursor: pointer; text-decoration: underline; }
+    .form-group { margin-bottom: 16px; }
+    label { font-weight: 500; display: block; margin-bottom: 6px; }
+    input, select, textarea { width: 100%; padding: 10px; border-radius: 16px; border: 1px solid #ccc; font-family: inherit; }
+    button { background: #1a5f4c; color: white; border: none; padding: 12px; border-radius: 60px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 8px; }
+    .blood-btn { background: #3b82f6; }
+    .logout-btn { background: #e2e8f0; color: #1e293b; width: auto; padding: 6px 12px; font-size: 0.8rem; margin-bottom: 16px; display: inline-block; }
+    .hover-card { position: fixed; background: white; border: 1px solid #ccc; border-radius: 16px; padding: 12px; width: 250px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); pointer-events: none; z-index: 1000; font-size: 0.8rem; }
+    .hover-card h4 { margin: 0 0 6px; color: #1a5f4c; }
+    .footer { text-align: center; font-size: 0.7rem; color: #94a3b8; margin-top: 20px; }
+    .student-item { background: #f8fafc; border-radius: 16px; padding: 12px; margin-bottom: 8px; }
+    .status-msg { margin-top: 8px; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+
+<div id="authContainer" class="auth-container">
+  <h2>🔐 SENwear</h2>
+  <div id="authError" style="color:red; margin-bottom:12px;"></div>
+  <input type="email" id="emailInput" placeholder="School email">
+  <input type="password" id="passwordInput" placeholder="Password">
+  <button id="signInBtn">Sign In</button>
+  <button id="signUpBtn" class="toggle-btn">Create Account</button>
+</div>
+
+<div id="mainApp" class="main-app container">
+  <div style="display: flex; justify-content: flex-end;">
+    <button id="logoutBtn" class="logout-btn">🚪 Sign Out</button>
+  </div>
+  <div style="text-align:center; margin-bottom:20px;">
+    <h1>📡 SENwear</h1>
+  </div>
+
+  <!-- Profile Card (first login) -->
+  <div class="card" id="profileCard" style="display:none;">
+    <h2>👤 Your profile</h2>
+    <div class="form-group">
+      <label>Your role</label>
+      <div id="roleGroup" style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="role-option" data-role="SNA">SNA</button>
+        <button type="button" class="role-option" data-role="VP">VP</button>
+        <button type="button" class="role-option" data-role="SENCO">SENCO</button>
+        <button type="button" class="role-option" data-role="Principal">Principal</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Your name</label>
+      <input type="text" id="staffName" placeholder="e.g., Kelly">
+    </div>
+    <button id="saveProfileBtn">Save profile</button>
+    <div id="profileStatus"></div>
+  </div>
+
+  <!-- Quick Alert -->
+  <div class="card" id="alertCard" style="display:none;">
+    <h2>⚡ Quick Alert</h2>
+    <div class="form-group">
+      <label>Student</label>
+      <select id="studentSelect"><option>Select student</option></select>
+    </div>
+    <div class="form-group">
+      <label>Alert type</label>
+      <select id="type">
+        <option>Health</option><option>Behaviour</option><option>Attendance</option><option>Academic</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Message</label>
+      <textarea id="message" rows="2" placeholder="What's happening?"></textarea>
+    </div>
+    <button id="sendAlertBtn">📢 Send Alert</button>
+    <div id="sendStatus" class="status-msg"></div>
+  </div>
+
+  <!-- Live Alerts -->
+  <div class="card" id="liveAlertsCard" style="display:none;">
+    <h2>📡 Live Alerts</h2>
+    <div id="alertsList">Loading...</div>
+  </div>
+
+  <!-- New Blood Reading -->
+  <div class="card" id="bloodCard" style="display:none;">
+    <h2>🩸 New Blood Reading</h2>
+    <div class="form-group">
+      <label>Student (Type 1 only)</label>
+      <select id="bloodStudentSelect"><option>Select student</option></select>
+    </div>
+    <div class="form-group">
+      <label>Reading (mmol/L)</label>
+      <input type="text" id="bloodReading" placeholder="e.g., 5.2">
+    </div>
+    <div class="form-group">
+      <label>Notes (optional)</label>
+      <input type="text" id="bloodNotes" placeholder="e.g., Before lunch">
+    </div>
+    <button id="saveBloodBtn" class="blood-btn">💾 Save Reading</button>
+    <div id="bloodStatus" class="status-msg"></div>
+  </div>
+
+  <!-- Blood History -->
+  <div class="blood-history-card" id="bloodHistoryCard" style="display:none;">
+    <div class="blood-history-header" id="bloodHistoryHeader">
+      <span>🩸 Blood Glucose History</span><span>▼</span>
+    </div>
+    <div class="blood-history-content" id="bloodHistoryContent">Loading...</div>
+  </div>
+
+  <!-- Student Management (CSV Import) -->
+  <div class="card" id="studentManagementCard" style="display:none;">
+    <div id="csvToggle" style="background:#1a5f4c; color:white; padding:12px; border-radius:40px; text-align:center; cursor:pointer;">📁 Student Management (CSV Import) ▶</div>
+    <div id="csvContent" style="display:none; margin-top:16px;">
+      <p>Upload CSV: initials, fullName, year, medicalFlags, triggers, strategies, keyStaff, typicalLocations, bloodGlucoseRequired</p>
+      <input type="file" id="csvFile" accept=".csv">
+      <button id="importBtn" style="background:#64748b;">Import Students</button>
+      <div id="importStatus"></div>
+      <hr>
+      <h3>👥 Students</h3>
+      <div id="studentList">No students yet.</div>
+    </div>
+  </div>
+
+  <!-- Feedback -->
+  <div class="card" id="feedbackCard" style="display:none;">
+    <h2>💬 Feedback</h2>
+    <button id="feedbackButton">📝 Give Feedback</button>
+  </div>
+
+  <div class="footer">SENwear • Secure • Laptops only</div>
+</div>
+
+<div id="hoverCard" class="hover-card" style="display:none;"></div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDbruzYo2ln8XY9MqTqXVkSsKUodeEux1U",
+    authDomain: "senwear-pilot-2.firebaseapp.com",
+    projectId: "senwear-pilot-2",
+    storageBucket: "senwear-pilot-2.firebasestorage.app",
+    messagingSenderId: "926491466146",
+    appId: "1:926491466146:web:1148a3e80ebeef3b15fafb"
+  };
+
+  const SCHOOL_ID = 'stcolumbas';
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  let currentUser = null;
+  let currentUserRole = null;
+  let currentUserName = null;
+  let currentSchoolId = SCHOOL_ID;
+
+  const authContainer = document.getElementById('authContainer');
+  const mainApp = document.getElementById('mainApp');
+
+  // ============ AUTH UI WIRING ============
+  document.getElementById('signInBtn').addEventListener('click', async () => {
+    const email = document.getElementById('emailInput').value.trim();
+    const pwd = document.getElementById('passwordInput').value;
+    const errBox = document.getElementById('authError');
+    errBox.innerText = '';
+    if (!email || !pwd) { errBox.innerText = 'Enter email and password'; return; }
+    try {
+      await auth.signInWithEmailAndPassword(email, pwd);
+    } catch (err) {
+      errBox.innerText = err.message;
+      console.error('Sign-in error:', err);
+    }
+  });
+
+  document.getElementById('signUpBtn').addEventListener('click', async () => {
+    const email = document.getElementById('emailInput').value.trim();
+    const pwd = document.getElementById('passwordInput').value;
+    const errBox = document.getElementById('authError');
+    errBox.innerText = '';
+    if (!email || !pwd) { errBox.innerText = 'Enter email and password'; return; }
+    if (pwd.length < 6) { errBox.innerText = 'Password must be at least 6 characters'; return; }
+    try {
+      await auth.createUserWithEmailAndPassword(email, pwd);
+    } catch (err) {
+      errBox.innerText = err.message;
+      console.error('Sign-up error:', err);
+    }
+  });
+
+  document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
+
+  // ============ AUTH STATE ============
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+      authContainer.style.display = 'block';
+      mainApp.style.display = 'none';
+      currentUser = null;
+      return;
+    }
+
+    currentUser = user;
+    authContainer.style.display = 'none';
+    mainApp.style.display = 'block';
+
+    // Check if staff doc exists
+    const staffRef = db.collection(`schools/${SCHOOL_ID}/staff`).doc(user.uid);
+    let staffDoc;
+    try {
+      staffDoc = await staffRef.get();
+    } catch (err) {
+      console.error('Error reading staff doc:', err);
+      document.getElementById('authError').innerText = 'Permission error. Check your Firestore rules.';
+      return;
+    }
+
+    if (staffDoc.exists) {
+      currentUserRole = staffDoc.data().role;
+      currentUserName = staffDoc.data().name;
+      showMainApp();
+    } else {
+      // First login: show profile setup
+      showProfileSetup();
+    }
+  });
+
+  function hideAllCards() {
+    ['profileCard','alertCard','liveAlertsCard','bloodCard','bloodHistoryCard','studentManagementCard','feedbackCard']
+      .forEach(id => document.getElementById(id).style.display = 'none');
+  }
+
+  function showProfileSetup() {
+    hideAllCards();
+    document.getElementById('profileCard').style.display = 'block';
+    setupRoleButtons();
+  }
+
+  function showMainApp() {
+    hideAllCards();
+    document.getElementById('alertCard').style.display = 'block';
+    document.getElementById('liveAlertsCard').style.display = 'block';
+    document.getElementById('bloodCard').style.display = 'block';
+    document.getElementById('bloodHistoryCard').style.display = 'block';
+    document.getElementById('studentManagementCard').style.display = 'block';
+    document.getElementById('feedbackCard').style.display = 'block';
+    loadStudents();
+    startLiveFeed();
+    setupBloodHistory();
+  }
+
+  // ============ PROFILE SETUP ============
+  let selectedRole = null;
+
+  function setupRoleButtons() {
+    document.querySelectorAll('.role-option').forEach(btn => {
+      btn.style.background = '#f1f5f9';
+      btn.style.color = '#1e293b';
+      btn.onclick = () => {
+        document.querySelectorAll('.role-option').forEach(b => {
+          b.style.background = '#f1f5f9';
+          b.style.color = '#1e293b';
+        });
+        btn.style.background = '#1a5f4c';
+        btn.style.color = 'white';
+        selectedRole = btn.getAttribute('data-role');
+      };
+    });
+  }
+
+  document.getElementById('saveProfileBtn').addEventListener('click', async () => {
+    const name = document.getElementById('staffName').value.trim();
+    const status = document.getElementById('profileStatus');
+    if (!selectedRole || !name) { status.innerText = 'Role and name required'; return; }
+    if (!currentUser) { status.innerText = 'No user session.'; return; }
+    try {
+      await db.collection(`schools/${SCHOOL_ID}/staff`).doc(currentUser.uid).set({
+        name: name,
+        role: selectedRole,
+        email: currentUser.email,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      currentUserRole = selectedRole;
+      currentUserName = name;
+      showMainApp();
+    } catch (err) {
+      status.innerText = 'Error saving profile: ' + err.message;
+      console.error(err);
+    }
+  });
+
+  // ============ STUDENTS ============
+  async function loadStudents() {
+    const alertSelect = document.getElementById('studentSelect');
+    const bloodSelect = document.getElementById('bloodStudentSelect');
+    try {
+      const snapshot = await db.collection(`schools/${SCHOOL_ID}/students`).get();
+      const students = [];
+      snapshot.forEach(doc => students.push({ id: doc.id, ...doc.data() }));
+
+      alertSelect.innerHTML = '<option disabled selected>Select student</option>';
+      bloodSelect.innerHTML = '<option disabled selected>Select student</option>';
+
+      students.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${s.initials} – ${s.fullName || ''} (${s.year || ''})${s.bloodGlucoseRequired ? ' (bloods)' : ''}`;
+        alertSelect.appendChild(opt);
+
+        if (s.bloodGlucoseRequired) {
+          const bopt = document.createElement('option');
+          bopt.value = s.id;
+          bopt.textContent = `${s.initials} – ${s.fullName || ''} (${s.year || ''}) (bloods)`;
+          bloodSelect.appendChild(bopt);
+        }
+      });
+
+      const studentListDiv = document.getElementById('studentList');
+      let html = '';
+      students.forEach(s => {
+        html += `<div class="student-item"><strong>${s.initials}</strong> · ${s.year || ''}<br>🏥 ${(s.medicalFlags || []).join(', ') || 'None'}<br>🛡️ ${(s.strategies || []).join(', ') || 'None'}</div>`;
+      });
+      studentListDiv.innerHTML = html || 'No students yet. Import CSV.';
+    } catch (err) {
+      console.error('Error loading students:', err);
+    }
+  }
+
+  // ============ LIVE FEED ============
+  function startLiveFeed() {
+    db.collection(`schools/${SCHOOL_ID}/alerts`).orderBy('timestamp', 'desc').onSnapshot(snapshot => {
+      const alertsDiv = document.getElementById('alertsList');
+      if (snapshot.empty) { alertsDiv.innerHTML = 'No alerts yet'; return; }
+      let html = '';
+      snapshot.forEach(doc => {
+        const a = doc.data();
+        if (Date.now() - a.timestamp > 86400000) return;
+        const date = new Date(a.timestamp).toLocaleTimeString();
+        const ackClass = a.acknowledged ? 'acknowledged' : '';
+        html += `
+          <div class="alert-item ${ackClass}">
+            <div style="font-size:0.7rem; color:#94a3b8;">${date}</div>
+            <span class="alert-student" data-student-id="${a.studentId}">${a.student}</span>
+            <span style="background:#eef2ff; padding:2px 8px; border-radius:20px; margin-left:8px;">${a.type}</span>
+            <div class="alert-message">${a.message}</div>
+            <div style="font-size:0.7rem;">— ${a.initials} (${a.role})</div>
+            ${!a.acknowledged ? `<button class="ack-btn" style="margin-top:8px; background:#e2e8f0; color:#1e293b; border:none; border-radius:20px; padding:4px 12px; width:auto; font-size:0.75rem;" onclick="acknowledgeAlert('${doc.id}')">✓ Acknowledge</button>` : ''}
+          </div>
+        `;
+      });
+      alertsDiv.innerHTML = html;
+      setupHoverSnapshot();
+    }, err => {
+      console.error('Live feed error:', err);
+    });
+  }
+
+  window.acknowledgeAlert = async (id) => {
+    try {
+      await db.collection(`schools/${SCHOOL_ID}/alerts`).doc(id).update({ acknowledged: true });
+    } catch (err) { console.error(err); }
+  };
+
+  // ============ SEND ALERT ============
+  document.getElementById('sendAlertBtn').addEventListener('click', async () => {
+    const studentSelect = document.getElementById('studentSelect');
+    const studentId = studentSelect.value;
+    const studentName = studentSelect.options[studentSelect.selectedIndex]?.text.split(' – ')[0];
+    const type = document.getElementById('type').value;
+    const message = document.getElementById('message').value.trim();
+
+    if (!studentId || studentId === 'Select student') { alert('Please select a student'); return; }
+    if (!message) { alert('Enter a message'); return; }
+
+    try {
+      await db.collection(`schools/${SCHOOL_ID}/alerts`).add({
+        student: studentName,
+        studentId: studentId,
+        type, message,
+        initials: currentUserName,
+        role: currentUserRole,
+        timestamp: Date.now(),
+        acknowledged: false
+      });
+      document.getElementById('message').value = '';
+      document.getElementById('sendStatus').innerHTML = '✅ Alert sent';
+      setTimeout(() => document.getElementById('sendStatus').innerHTML = '', 2000);
+    } catch (err) {
+      console.error('Send alert error:', err);
+      alert('Failed to send alert: ' + err.message);
+    }
+  });
+
+  // ============ BLOOD GLUCOSE ============
+  document.getElementById('saveBloodBtn').addEventListener('click', async () => {
+    const bloodSelect = document.getElementById('bloodStudentSelect');
+    const studentId = bloodSelect.value;
+    const studentName = bloodSelect.options[bloodSelect.selectedIndex]?.text;
+    const reading = parseFloat(document.getElementById('bloodReading').value.trim());
+    const notes = document.getElementById('bloodNotes').value.trim();
+
+    if (!studentId || studentId === 'Select student') { alert('Select student'); return; }
+    if (isNaN(reading)) { alert('Enter a valid number'); return; }
+    if (reading < 1 || reading > 40) { alert('Reading looks unusual. Please check.'); return; }
+
+    try {
+      await db.collection(`schools/${SCHOOL_ID}/bloodLogs`).add({
+        student: studentName,
+        studentId: studentId,
+        reading: reading,
+        notes: notes,
+        recordedBy: currentUserName,
+        timestamp: Date.now(),
+        type: 'BLOOD_LOG'
+      });
+      document.getElementById('bloodStatus').innerHTML = '✅ Saved';
+      document.getElementById('bloodReading').value = '';
+      document.getElementById('bloodNotes').value = '';
+      setTimeout(() => document.getElementById('bloodStatus').innerHTML = '', 2000);
+    } catch (err) {
+      console.error('Blood save error:', err);
+      alert('Failed to save reading: ' + err.message);
+    }
+  });
+
+  // ============ BLOOD HISTORY ============
+  function setupBloodHistory() {
+    const content = document.getElementById('bloodHistoryContent');
+    const header = document.getElementById('bloodHistoryHeader');
+    header.onclick = () => {
+      const isOpen = content.classList.contains('show');
+      content.classList.toggle('show');
+      header.querySelector('span:last-child').textContent = isOpen ? '▼' : '▲';
+      if (!isOpen) {
+        db.collection(`schools/${SCHOOL_ID}/bloodLogs`).orderBy('timestamp', 'desc').limit(50).onSnapshot(snap => {
+          let html = '';
+          snap.forEach(doc => {
+            const b = doc.data();
+            const date = new Date(b.timestamp).toLocaleDateString();
+            const time = new Date(b.timestamp).toLocaleTimeString();
+            html += `<div class="blood-log-entry"><strong>${date} ${time}</strong> – ${b.student} – ${b.reading} mmol/L – ${b.recordedBy}${b.notes ? ` (${b.notes})` : ''}</div>`;
+          });
+          content.innerHTML = html || '<div>No readings yet</div>';
+        });
+      }
+    };
+  }
+
+  // ============ HOVER SNAPSHOT ============
+  let hoverTimeout;
+  const hoverCard = document.getElementById('hoverCard');
+
+  async function showHoverCard(event, studentId) {
+    try {
+      const doc = await db.collection(`schools/${SCHOOL_ID}/students`).doc(studentId).get();
+      if (!doc.exists) return;
+      const data = doc.data();
+      hoverCard.innerHTML = `
+        <h4>${data.fullName || data.initials}</h4>
+        <p><strong>🩺 Medical:</strong> ${(data.medicalFlags || []).join(', ') || 'None'}</p>
+        <p><strong>⚠️ Triggers:</strong> ${(data.triggers || []).join(', ') || 'None'}</p>
+        <p><strong>✅ Strategies:</strong> ${(data.strategies || []).join(', ') || 'None'}</p>
+        <p><strong>👥 Key staff:</strong> ${(data.keyStaff || []).join(', ') || 'None'}</p>
+      `;
+      hoverCard.style.display = 'block';
+      const rect = event.target.getBoundingClientRect();
+      let left = rect.right + 8;
+      let top = rect.top;
+      if (left + 250 > window.innerWidth) left = rect.left - 258;
+      if (top + 200 > window.innerHeight) top = window.innerHeight - 210;
+      hoverCard.style.left = left + 'px';
+      hoverCard.style.top = top + 'px';
+    } catch (err) { console.error(err); }
+  }
+
+  function setupHoverSnapshot() {
+    document.querySelectorAll('.alert-student').forEach(el => {
+      el.onmouseenter = (e) => {
+        clearTimeout(hoverTimeout);
+        const studentId = e.currentTarget.getAttribute('data-student-id');
+        if (studentId) showHoverCard(e, studentId);
+      };
+      el.onmouseleave = () => {
+        hoverTimeout = setTimeout(() => hoverCard.style.display = 'none', 150);
+      };
+    });
+  }
+
+  // ============ CSV IMPORT ============
+  document.getElementById('csvToggle').onclick = () => {
+    const csvDiv = document.getElementById('csvContent');
+    csvDiv.style.display = csvDiv.style.display === 'none' ? 'block' : 'none';
+  };
+
+  document.getElementById('importBtn').addEventListener('click', () => {
+    const file = document.getElementById('csvFile').files[0];
+    if (!file) { document.getElementById('importStatus').innerText = 'Select a CSV file'; return; }
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const students = results.data;
+        let success = 0;
+        for (const student of students) {
+          if (!student.initials) continue;
+          ['medicalFlags', 'triggers', 'strategies', 'keyStaff', 'typicalLocations'].forEach(f => {
+            if (student[f] && typeof student[f] === 'string') {
+              student[f] = student[f].split(',').map(s => s.trim()).filter(s => s);
+            } else {
+              student[f] = [];
+            }
+          });
+          student.bloodGlucoseRequired = student.bloodGlucoseRequired === 'TRUE' || student.bloodGlucoseRequired === 'true';
+          try {
+            await db.collection(`schools/${SCHOOL_ID}/students`).doc(student.initials).set(student, { merge: true });
+            success++;
+          } catch(err) { console.error(err); }
+        }
+        document.getElementById('importStatus').innerHTML = `✅ Imported ${success} students`;
+        await loadStudents();
+      },
+      error: (err) => {
+        document.getElementById('importStatus').innerHTML = '❌ Error parsing CSV';
+        console.error(err);
+      }
+    });
+  });
+
+  // ============ FEEDBACK ============
+  document.getElementById('feedbackButton').addEventListener('click', () => {
+    window.open('https://forms.gle/your-feedback-link-here', '_blank');
+  });
+
+  // ============ SERVICE WORKER (caching only) ============
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then(() => console.log('Service worker registered'))
+      .catch(err => console.log('SW registration failed:', err));
+  }
+</script>
+</body>
+</html>
