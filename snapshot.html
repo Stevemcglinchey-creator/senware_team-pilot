@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SENwear – Student Snapshot</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #f5f7fb; color: #1e293b; padding: 20px; }
+    .container { max-width: 700px; margin: 0 auto; }
+    .card { background: white; border-radius: 32px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid #eef2f6; }
+    .header { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; margin-bottom: 12px; }
+    .student-name { font-size: 1.6rem; font-weight: 700; color: #1a5f4c; }
+    .meta { font-size: 0.8rem; color: #64748b; margin-bottom: 16px; }
+    .risk-badge { display: inline-block; padding: 4px 12px; border-radius: 40px; font-size: 0.7rem; font-weight: 600; margin-right: 8px; }
+    .risk-high { background: #fee2e2; color: #b91c1c; }
+    .risk-medium { background: #fff3e3; color: #b45309; }
+    .risk-low { background: #e0f2fe; color: #075985; }
+    .section-title { font-weight: 600; font-size: 1rem; margin: 16px 0 8px; color: #0f172a; border-left: 3px solid #1a5f4c; padding-left: 10px; }
+    .priority-box { background: #fef9e3; border-left: 4px solid #f59e0b; padding: 12px; border-radius: 16px; margin: 8px 0; }
+    .do-not-box { background: #fee2e2; border-left: 4px solid #dc2626; padding: 12px; border-radius: 16px; margin: 8px 0; }
+    .list-bullet { margin-left: 20px; margin-top: 6px; }
+    .list-bullet li { margin-bottom: 4px; }
+    .footer-note { font-size: 0.7rem; color: #94a3b8; text-align: center; margin-top: 24px; }
+    .back-link { display: inline-block; margin-bottom: 12px; color: #1a5f4c; text-decoration: none; font-weight: 500; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <a href="/" class="back-link">← Back to SENwear</a>
+  <div id="snapshotContainer">
+    <div class="card"><p>Loading student data...</p></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDbruzYo2ln8XY9MqTqXVkSsKUodeEux1U",
+    authDomain: "senwear-pilot-2.firebaseapp.com",
+    projectId: "senwear-pilot-2",
+    storageBucket: "senwear-pilot-2.firebasestorage.app",
+    messagingSenderId: "926491466146",
+    appId: "1:926491466146:web:1148a3e80ebeef3b15fafb"
+  };
+
+  const SCHOOL_ID = 'stcolumbas';
+  const urlParams = new URLSearchParams(window.location.search);
+  const studentId = urlParams.get('studentId');
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+      document.getElementById('snapshotContainer').innerHTML =
+        '<div class="card"><p>❌ Please <a href="/">sign in</a> first.</p></div>';
+      return;
+    }
+    if (!studentId) {
+      document.getElementById('snapshotContainer').innerHTML =
+        '<div class="card"><p>❌ No student selected.</p></div>';
+      return;
+    }
+    await loadSnapshot(studentId);
+  });
+
+  async function loadSnapshot(studentId) {
+    try {
+      // Verify the user is a staff member of this school
+      const staffDoc = await db.collection(`schools/${SCHOOL_ID}/staff`).doc(auth.currentUser.uid).get();
+      if (!staffDoc.exists) {
+        document.getElementById('snapshotContainer').innerHTML =
+          '<div class="card"><p>❌ You do not have access to this school\'s data.</p></div>';
+        return;
+      }
+
+      const studentDoc = await db.collection(`schools/${SCHOOL_ID}/students`).doc(studentId).get();
+      if (!studentDoc.exists) throw new Error('Student not found');
+      const student = studentDoc.data();
+
+      const alertsQuery = await db.collection(`schools/${SCHOOL_ID}/alerts`)
+        .where('studentId', '==', studentId)
+        .orderBy('timestamp', 'desc')
+        .limit(5)
+        .get();
+
+      const recentAlerts = [];
+      alertsQuery.forEach(doc => recentAlerts.push(doc.data()));
+
+      renderSnapshot(student, recentAlerts);
+    } catch (err) {
+      console.error(err);
+      document.getElementById('snapshotContainer').innerHTML =
+        `<div class="card"><p>❌ Error: ${escapeHtml(err.message)}</p></div>`;
+    }
+  }
+
+  function renderSnapshot(student, recentAlerts) {
+    function formatArray(arr) {
+      if (!arr || arr.length === 0) return '<p><em>None provided</em></p>';
+      let html = '<ul class="list-bullet">';
+      arr.forEach(item => html += `<li>${escapeHtml(item)}</li>`);
+      html += '</ul>';
+      return html;
+    }
+    function formatText(text) {
+      if (!text) return '<p><em>None provided</em></p>';
+      return `<p>${escapeHtml(text)}</p>`;
+    }
+    function getRiskBadge(level) {
+      const risk = level || 'low';
+      if (risk === 'high') return '<span class="risk-badge risk-high">🔴 High risk</span>';
+      if (risk === 'medium') return '<span class="risk-badge risk-medium">🟠 Medium risk</span>';
+      return '<span class="risk-badge risk-low">🟢 Low risk</span>';
+    }
+
+    const html = `
+      <div class="card">
+        <div class="header">
+          <span class="student-name">${escapeHtml(student.initials || '?')}${student.year ? ` – ${escapeHtml(student.year)}` : ''}</span>
+        </div>
+        <div class="meta">
+          ${student.fullName ? escapeHtml(student.fullName) + '<br>' : ''}
+          Last updated: ${student.lastUpdated ? new Date(student.lastUpdated.toDate()).toLocaleDateString() : 'not recorded'}
+          <br>${getRiskBadge(student.riskLevel)}
+        </div>
+
+        ${student.todayPriority ? `<div class="priority-box"><strong>🚨 Today's Priority:</strong><br>${formatText(student.todayPriority)}</div>` : ''}
+
+        <div class="section-title">🩺 Medical Flags</div>
+        ${formatArray(student.medicalFlags)}
+
+        ${student.doNot && student.doNot.length ? `<div class="do-not-box"><strong>⚠️ Do NOT:</strong>${formatArray(student.doNot)}</div>` : ''}
+
+        <div class="section-title">⚠️ Triggers</div>
+        ${formatArray(student.triggers)}
+
+        <div class="section-title">🛠️ Strategies</div>
+        ${formatArray(student.strategies)}
+
+        <div class="section-title">📍 Typical Locations</div>
+        ${formatArray(student.typicalLocations)}
+
+        <div class="section-title">👥 Key Staff</div>
+        ${formatArray(student.keyStaff)}
+
+        <div class="section-title">📋 Recent alerts (last 5)</div>
+        <ul class="list-bullet">
+          ${recentAlerts.length ? recentAlerts.map(a =>
+            `<li>${new Date(a.timestamp).toLocaleDateString()} – ${escapeHtml(a.type)}: ${escapeHtml(a.message)}</li>`
+          ).join('') : '<li>No recent alerts</li>'}
+        </ul>
+      </div>
+      <div class="footer-note">
+        ℹ️ Information reflects current understanding and may be updated. Staff should always use professional judgement.
+      </div>
+    `;
+    document.getElementById('snapshotContainer').innerHTML = html;
+  }
+
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      if (m === '"') return '&quot;';
+      if (m === "'") return '&#39;';
+      return m;
+    });
+  }
+</script>
+</body>
+</html>
