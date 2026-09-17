@@ -18,7 +18,11 @@
     .card { background: white; border-radius: 24px; padding: 20px; margin-bottom: 20px; border: 1px solid #eef2f6; }
     .blood-history-card { background: white; border-radius: 24px; margin-bottom: 20px; border: 1px solid #eef2f6; overflow: hidden; }
     .blood-history-header { background: #f8fafc; padding: 16px; cursor: pointer; display: flex; justify-content: space-between; font-weight: bold; }
-    .blood-history-content { display: none; padding: 16px; max-height: 300px; overflow-y: auto; }
+    .blood-history-content { display: none; padding: 0; }
+    .blood-filter { padding: 12px 16px; background: #f8fafc; border-bottom: 1px solid #eef2f6; }
+    .blood-filter select { width: 100%; font-size: 0.85rem; padding: 8px; }
+    .blood-log-entry { padding: 10px 16px; border-bottom: 1px solid #f1f5f9; font-size: 0.85rem; }
+    #bloodLogList { max-height: 400px; overflow-y: auto; }
     .show { display: block; }
     .alert-item { background: #f8fafc; border-radius: 16px; padding: 16px; margin-bottom: 12px; border-left: 4px solid #1a5f4c; position: relative; }
     .alert-item.acknowledged { opacity: 0.6; border-left-color: #94a3b8; }
@@ -41,6 +45,32 @@
     .status-msg { margin-top: 8px; font-size: 0.8rem; }
     .role-option { background: #f1f5f9; color: #1e293b; }
     .role-option.selected { background: #1a5f4c; color: white; }
+
+    /* Custom modal (replaces browser confirm/prompt) */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.5);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2000; padding: 20px;
+    }
+    .modal-box {
+      background: white; border-radius: 24px; padding: 24px;
+      max-width: 420px; width: 100%; box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+    .modal-box h3 { color: #1a5f4c; margin-bottom: 12px; font-size: 1.1rem; }
+    .modal-box p { font-size: 0.9rem; margin-bottom: 8px; color: #334155; }
+    .modal-box .modal-detail {
+      background: #f8fafc; border-radius: 12px; padding: 12px;
+      margin: 12px 0; font-size: 0.85rem; line-height: 1.5;
+    }
+    .modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+    .modal-actions button {
+      flex: 1; padding: 12px; border-radius: 60px; border: none;
+      font-weight: bold; cursor: pointer; margin: 0;
+    }
+    .btn-primary { background: #1a5f4c; color: white; }
+    .btn-secondary { background: #e2e8f0; color: #1e293b; }
+    .btn-danger { background: #dc2626; color: white; }
   </style>
 </head>
 <body>
@@ -136,7 +166,7 @@
     <div class="blood-history-header" id="bloodHistoryHeader">
       <span>🩸 Blood Glucose History</span><span>▼</span>
     </div>
-    <div class="blood-history-content" id="bloodHistoryContent">Loading...</div>
+    <div class="blood-history-content" id="bloodHistoryContent"></div>
   </div>
 
   <!-- Student Management (CSV Import) – Admin only -->
@@ -170,6 +200,32 @@
 
 <div id="hoverCard" class="hover-card" style="display:none;"></div>
 
+<!-- Custom confirmation modal -->
+<div id="confirmModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <h3 id="modalTitle">Confirm</h3>
+    <p id="modalMessage"></p>
+    <div class="modal-detail" id="modalDetail"></div>
+    <div class="modal-actions">
+      <button id="modalCancel" class="btn-secondary">Cancel</button>
+      <button id="modalConfirm" class="btn-primary">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reason input modal -->
+<div id="reasonModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box">
+    <h3 id="reasonTitle">Enter a reason</h3>
+    <p style="font-size:0.85rem; color:#64748b; margin-bottom:12px;">This will be recorded in the audit log.</p>
+    <textarea id="reasonInput" rows="3" placeholder="Reason..." style="width:100%; padding:10px; border-radius:16px; border:1px solid #ccc; font-family:inherit;"></textarea>
+    <div class="modal-actions">
+      <button id="reasonCancel" class="btn-secondary">Cancel</button>
+      <button id="reasonConfirm" class="btn-primary">Confirm</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -196,17 +252,70 @@
   let currentUser = null;
   let currentUserRole = null;
   let currentUserName = null;
-  let studentMap = {}; // studentId -> student data
+  let studentMap = {};
   let allStudents = [];
 
   const authContainer = document.getElementById('authContainer');
   const mainApp = document.getElementById('mainApp');
+
+  // ============ CUSTOM MODAL SYSTEM ============
+  function showConfirm({ title, message, detail, confirmText = 'Confirm', danger = false }) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('confirmModal');
+      document.getElementById('modalTitle').textContent = title;
+      document.getElementById('modalMessage').textContent = message;
+      const detailEl = document.getElementById('modalDetail');
+      if (detail) { detailEl.innerHTML = detail; detailEl.style.display = 'block'; }
+      else { detailEl.style.display = 'none'; }
+
+      const confirmBtn = document.getElementById('modalConfirm');
+      confirmBtn.textContent = confirmText;
+      confirmBtn.className = danger ? 'btn-danger' : 'btn-primary';
+
+      modal.style.display = 'flex';
+
+      const cleanup = () => { modal.style.display = 'none'; };
+      const onConfirm = () => { cleanup(); resolve(true); };
+      const onCancel = () => { cleanup(); resolve(false); };
+
+      confirmBtn.onclick = onConfirm;
+      document.getElementById('modalCancel').onclick = onCancel;
+      modal.onclick = (e) => { if (e.target === modal) onCancel(); };
+    });
+  }
+
+  function showReasonInput({ title, placeholder = 'Enter reason...' }) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('reasonModal');
+      document.getElementById('reasonTitle').textContent = title;
+      const input = document.getElementById('reasonInput');
+      input.value = '';
+      input.placeholder = placeholder;
+      input.style.borderColor = '#ccc';
+      modal.style.display = 'flex';
+      setTimeout(() => input.focus(), 100);
+
+      const cleanup = () => { modal.style.display = 'none'; };
+      const onConfirm = () => {
+        const val = input.value.trim();
+        if (!val) { input.style.borderColor = '#dc2626'; return; }
+        cleanup(); resolve(val);
+      };
+      const onCancel = () => { cleanup(); resolve(null); };
+
+      document.getElementById('reasonConfirm').onclick = onConfirm;
+      document.getElementById('reasonCancel').onclick = onCancel;
+      modal.onclick = (e) => { if (e.target === modal) onCancel(); };
+      input.onkeydown = (e) => { if (e.key === 'Enter') onConfirm(); };
+    });
+  }
 
   // ============ AUTH ============
   document.getElementById('signInBtn').addEventListener('click', async () => {
     const email = document.getElementById('emailInput').value.trim();
     const pwd = document.getElementById('passwordInput').value;
     const errBox = document.getElementById('authError');
+    errBox.style.color = 'red';
     errBox.innerText = '';
     if (!email || !pwd) { errBox.innerText = 'Enter email and password'; return; }
     try {
@@ -220,6 +329,7 @@
   document.getElementById('forgotPasswordBtn').addEventListener('click', async () => {
     const email = document.getElementById('emailInput').value.trim();
     const errBox = document.getElementById('authError');
+    errBox.style.color = 'red';
     if (!email) { errBox.innerText = 'Enter your email above, then click Forgot password'; return; }
     try {
       await auth.sendPasswordResetEmail(email);
@@ -284,14 +394,14 @@
     document.getElementById('bloodHistoryCard').style.display = 'block';
     document.getElementById('feedbackCard').style.display = 'block';
 
-    // Admin-only cards
     if (ADMIN_ROLES.includes(currentUserRole)) {
       document.getElementById('studentManagementCard').style.display = 'block';
     }
 
-    loadStudents();
+    loadStudents().then(() => {
+      setupBloodHistory();
+    });
     startLiveFeed();
-    setupBloodHistory();
   }
 
   // ============ PROFILE SETUP ============
@@ -365,7 +475,10 @@
           <strong>${escapeHtml(s.initials)}</strong> · ${escapeHtml(s.year || '')}
           <br>🏥 ${(s.medicalFlags || []).join(', ') || 'None'}
           <br>🛡️ ${(s.strategies || []).join(', ') || 'None'}
-          ${ADMIN_ROLES.includes(currentUserRole) ? `<button onclick="deleteStudent('${s.id}')" style="background:#fee2e2; color:#b91c1c; margin-top:8px; padding:6px; font-size:0.75rem;">🗑️ Delete</button>` : ''}
+          <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
+            ${s.bloodGlucoseRequired ? `<button onclick="jumpToBloodHistory('${s.id}')" style="background:#3b82f6; color:white; padding:6px 12px; font-size:0.75rem; width:auto; margin:0;">🩸 View readings</button>` : ''}
+            ${ADMIN_ROLES.includes(currentUserRole) ? `<button onclick="deleteStudent('${s.id}')" style="background:#fee2e2; color:#b91c1c; padding:6px 12px; font-size:0.75rem; width:auto; margin:0;">🗑️ Delete</button>` : ''}
+          </div>
         </div>`;
       });
       studentListDiv.innerHTML = html || 'No students yet. Import CSV.';
@@ -376,9 +489,21 @@
 
   window.deleteStudent = async (studentId) => {
     if (!ADMIN_ROLES.includes(currentUserRole)) { alert('Not authorised'); return; }
-    const reason = prompt(`Delete student "${studentId}"?\n\nEnter a reason (this will be logged):`);
+    const reason = await showReasonInput({
+      title: `Delete student ${studentId}?`,
+      placeholder: 'Reason (e.g., student left the school)'
+    });
     if (!reason) return;
-    if (!confirm(`Confirm deletion of student ${studentId}?\n\nReason: ${reason}`)) return;
+
+    const confirmed = await showConfirm({
+      title: 'Confirm delete',
+      message: `You are about to permanently delete ${studentId}.`,
+      detail: `<strong>Reason:</strong> ${escapeHtml(reason)}<br><br>⚠️ This cannot be undone.`,
+      confirmText: '🗑️ Delete Student',
+      danger: true
+    });
+    if (!confirmed) return;
+
     try {
       await db.collection(`schools/${SCHOOL_ID}/students`).doc(studentId).delete();
       await db.collection(`schools/${SCHOOL_ID}/auditLog`).add({
@@ -406,7 +531,7 @@
       const now = Date.now();
       snapshot.forEach(doc => {
         const a = doc.data();
-        if (now - a.timestamp > ALERT_WINDOW_MS) return; // 7 days
+        if (now - a.timestamp > ALERT_WINDOW_MS) return;
         const date = new Date(a.timestamp).toLocaleString();
         const ackClass = a.acknowledged ? 'acknowledged' : '';
         const deletedClass = a.deleted ? 'deleted' : '';
@@ -441,16 +566,35 @@
   };
 
   window.unsendAlert = async (id) => {
-    if (!confirm('Unsend this alert? This cannot be undone.')) return;
+    const confirmed = await showConfirm({
+      title: 'Unsend alert?',
+      message: 'This will remove the alert immediately. This cannot be undone.',
+      detail: '',
+      confirmText: '↩️ Unsend',
+      danger: true
+    });
+    if (!confirmed) return;
     try {
       await db.collection(`schools/${SCHOOL_ID}/alerts`).doc(id).delete();
     } catch (err) { console.error(err); alert('Failed to unsend: ' + err.message); }
   };
 
   window.adminDeleteAlert = async (id) => {
-    const reason = prompt('Reason for deleting this alert (will be logged):');
+    const reason = await showReasonInput({
+      title: 'Delete alert',
+      placeholder: 'Reason (e.g., sent about wrong student)'
+    });
     if (!reason) return;
-    if (!confirm('Confirm delete?\n\nReason: ' + reason)) return;
+
+    const confirmed = await showConfirm({
+      title: 'Confirm delete',
+      message: 'This alert will be marked as deleted and hidden.',
+      detail: `<strong>Reason:</strong> ${escapeHtml(reason)}`,
+      confirmText: '🗑️ Delete',
+      danger: true
+    });
+    if (!confirmed) return;
+
     try {
       await db.collection(`schools/${SCHOOL_ID}/alerts`).doc(id).update({
         deleted: true,
@@ -481,14 +625,14 @@
     if (!studentId || studentId === 'Select student') { alert('Please select a student'); return; }
     if (!message) { alert('Enter a message'); return; }
 
-    // ✅ Confirm before send
-    const confirmed = confirm(
-      `Please confirm:\n\n` +
-      `Student: ${studentName}\n` +
-      `Type: ${type}\n` +
-      `Message: ${message}\n\n` +
-      `Send this alert?`
-    );
+    const confirmed = await showConfirm({
+      title: 'Send alert?',
+      message: 'Please confirm the details below:',
+      detail: `<strong>Student:</strong> ${escapeHtml(studentName)}<br>
+               <strong>Type:</strong> ${escapeHtml(type)}<br>
+               <strong>Message:</strong> ${escapeHtml(message)}`,
+      confirmText: '📢 Send Alert'
+    });
     if (!confirmed) return;
 
     try {
@@ -545,27 +689,105 @@
     }
   });
 
-  // ============ BLOOD HISTORY ============
+  // ============ BLOOD HISTORY (Per Student) ============
+  let bloodHistoryUnsub = null;
+  let bloodHistoryStudent = '';
+
   function setupBloodHistory() {
     const content = document.getElementById('bloodHistoryContent');
     const header = document.getElementById('bloodHistoryHeader');
+
+    content.innerHTML = `
+      <div class="blood-filter">
+        <select id="bloodFilterSelect">
+          <option value="">All students</option>
+        </select>
+      </div>
+      <div id="bloodLogList"></div>
+    `;
+
+    const filterSelect = document.getElementById('bloodFilterSelect');
+    allStudents.filter(s => s.bloodGlucoseRequired).forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = `${s.initials} – ${s.fullName || ''}`;
+      filterSelect.appendChild(opt);
+    });
+
+    filterSelect.onchange = () => {
+      bloodHistoryStudent = filterSelect.value;
+      loadBloodHistory();
+    };
+
     header.onclick = () => {
       const isOpen = content.classList.contains('show');
       content.classList.toggle('show');
       header.querySelector('span:last-child').textContent = isOpen ? '▼' : '▲';
-      if (!isOpen) {
-        db.collection(`schools/${SCHOOL_ID}/bloodLogs`).orderBy('timestamp', 'desc').limit(50).onSnapshot(snap => {
-          let html = '';
-          snap.forEach(doc => {
-            const b = doc.data();
-            const date = new Date(b.timestamp).toLocaleString();
-            html += `<div class="blood-log-entry"><strong>${date}</strong> – ${escapeHtml(b.student)} – ${b.reading} mmol/L – ${escapeHtml(b.recordedBy)}${b.notes ? ` (${escapeHtml(b.notes)})` : ''}</div>`;
-          });
-          content.innerHTML = html || '<div>No readings yet</div>';
-        });
-      }
+      if (!isOpen) loadBloodHistory();
     };
   }
+
+  function loadBloodHistory() {
+    const listDiv = document.getElementById('bloodLogList');
+    if (!listDiv) return;
+    listDiv.innerHTML = '<div style="padding:12px; color:#94a3b8;">Loading...</div>';
+
+    if (bloodHistoryUnsub) { bloodHistoryUnsub(); bloodHistoryUnsub = null; }
+
+    let query = db.collection(`schools/${SCHOOL_ID}/bloodLogs`)
+      .orderBy('timestamp', 'desc')
+      .limit(100);
+
+    if (bloodHistoryStudent) {
+      query = db.collection(`schools/${SCHOOL_ID}/bloodLogs`)
+        .where('studentId', '==', bloodHistoryStudent)
+        .orderBy('timestamp', 'desc')
+        .limit(100);
+    }
+
+    bloodHistoryUnsub = query.onSnapshot(snap => {
+      if (snap.empty) {
+        listDiv.innerHTML = '<div style="padding:12px; color:#94a3b8;">No readings yet</div>';
+        return;
+      }
+      let html = '';
+      snap.forEach(doc => {
+        const b = doc.data();
+        const date = new Date(b.timestamp).toLocaleString();
+        let colour = '#1e293b';
+        if (b.reading < 4) colour = '#dc2626';
+        else if (b.reading > 10) colour = '#b45309';
+        else colour = '#166534';
+
+        html += `<div class="blood-log-entry">
+          <strong style="font-size:0.75rem; color:#64748b;">${date}</strong>
+          <div style="font-size:0.85rem; margin-top:2px;">
+            ${escapeHtml(b.student)} – 
+            <span style="color:${colour}; font-weight:bold;">${b.reading} mmol/L</span>
+            ${b.notes ? `<span style="color:#64748b;"> (${escapeHtml(b.notes)})</span>` : ''}
+            <span style="color:#94a3b8; font-size:0.75rem;"> — ${escapeHtml(b.recordedBy)}</span>
+          </div>
+        </div>`;
+      });
+      listDiv.innerHTML = html;
+    }, err => {
+      console.error(err);
+      listDiv.innerHTML = '<div style="padding:12px; color:#dc2626;">Failed to load readings</div>';
+    });
+  }
+
+  window.jumpToBloodHistory = (studentId) => {
+    bloodHistoryStudent = studentId;
+    const filterSelect = document.getElementById('bloodFilterSelect');
+    if (filterSelect) filterSelect.value = studentId;
+
+    const content = document.getElementById('bloodHistoryContent');
+    const header = document.getElementById('bloodHistoryHeader');
+    content.classList.add('show');
+    header.querySelector('span:last-child').textContent = '▲';
+    content.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    loadBloodHistory();
+  };
 
   // ============ HOVER SNAPSHOT ============
   let hoverTimeout;
