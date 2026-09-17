@@ -13,16 +13,21 @@
     .auth-container h2 { text-align: center; color: #1a5f4c; margin-bottom: 24px; }
     .auth-container input, .auth-container button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 60px; border: 1px solid #ddd; }
     .auth-container button { background: #1a5f4c; color: white; border: none; font-weight: bold; cursor: pointer; }
-    .toggle-btn { background: none !important; color: #1a5f4c !important; border: 1px solid #1a5f4c !important; }
+    .link-btn { background: none !important; color: #1a5f4c !important; border: none !important; font-size: 0.85rem; cursor: pointer; padding: 4px !important; }
     .main-app { display: none; }
     .card { background: white; border-radius: 24px; padding: 20px; margin-bottom: 20px; border: 1px solid #eef2f6; }
     .blood-history-card { background: white; border-radius: 24px; margin-bottom: 20px; border: 1px solid #eef2f6; overflow: hidden; }
     .blood-history-header { background: #f8fafc; padding: 16px; cursor: pointer; display: flex; justify-content: space-between; font-weight: bold; }
     .blood-history-content { display: none; padding: 16px; max-height: 300px; overflow-y: auto; }
     .show { display: block; }
-    .alert-item { background: #f8fafc; border-radius: 16px; padding: 16px; margin-bottom: 12px; border-left: 4px solid #1a5f4c; }
+    .alert-item { background: #f8fafc; border-radius: 16px; padding: 16px; margin-bottom: 12px; border-left: 4px solid #1a5f4c; position: relative; }
     .alert-item.acknowledged { opacity: 0.6; border-left-color: #94a3b8; }
+    .alert-item.deleted { opacity: 0.4; border-left-color: #dc2626; text-decoration: line-through; }
     .alert-student { font-weight: bold; color: #1a5f4c; cursor: pointer; text-decoration: underline; }
+    .alert-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; }
+    .alert-actions button { width: auto; padding: 4px 10px; font-size: 0.7rem; border-radius: 12px; margin: 0; }
+    .btn-delete { background: #fee2e2; color: #b91c1c; }
+    .btn-unsend { background: #fef3c7; color: #b45309; }
     .form-group { margin-bottom: 16px; }
     label { font-weight: 500; display: block; margin-bottom: 6px; }
     input, select, textarea { width: 100%; padding: 10px; border-radius: 16px; border: 1px solid #ccc; font-family: inherit; }
@@ -34,6 +39,8 @@
     .footer { text-align: center; font-size: 0.7rem; color: #94a3b8; margin-top: 20px; }
     .student-item { background: #f8fafc; border-radius: 16px; padding: 12px; margin-bottom: 8px; }
     .status-msg { margin-top: 8px; font-size: 0.8rem; }
+    .role-option { background: #f1f5f9; color: #1e293b; }
+    .role-option.selected { background: #1a5f4c; color: white; }
   </style>
 </head>
 <body>
@@ -44,7 +51,10 @@
   <input type="email" id="emailInput" placeholder="School email">
   <input type="password" id="passwordInput" placeholder="Password">
   <button id="signInBtn">Sign In</button>
-  <button id="signUpBtn" class="toggle-btn">Create Account</button>
+  <button id="forgotPasswordBtn" class="link-btn">Forgot password?</button>
+  <p style="text-align:center; font-size:0.8rem; color:#94a3b8; margin-top:16px;">
+    Need an account? Contact your SENwear admin.
+  </p>
 </div>
 
 <div id="mainApp" class="main-app container">
@@ -98,7 +108,7 @@
 
   <!-- Live Alerts -->
   <div class="card" id="liveAlertsCard" style="display:none;">
-    <h2>📡 Live Alerts</h2>
+    <h2>📡 Live Alerts (last 7 days)</h2>
     <div id="alertsList">Loading...</div>
   </div>
 
@@ -129,17 +139,23 @@
     <div class="blood-history-content" id="bloodHistoryContent">Loading...</div>
   </div>
 
-  <!-- Student Management (CSV Import) -->
+  <!-- Student Management (CSV Import) – Admin only -->
   <div class="card" id="studentManagementCard" style="display:none;">
-    <div id="csvToggle" style="background:#1a5f4c; color:white; padding:12px; border-radius:40px; text-align:center; cursor:pointer;">📁 Student Management (CSV Import) ▶</div>
+    <div id="csvToggle" style="background:#1a5f4c; color:white; padding:12px; border-radius:40px; text-align:center; cursor:pointer;">📁 Student Management ▶</div>
     <div id="csvContent" style="display:none; margin-top:16px;">
-      <p>Upload CSV: initials, fullName, year, medicalFlags, triggers, strategies, keyStaff, typicalLocations, bloodGlucoseRequired</p>
+      <p style="font-size:0.85rem;">Upload CSV: initials, fullName, year, medicalFlags, triggers, strategies, keyStaff, typicalLocations, bloodGlucoseRequired</p>
       <input type="file" id="csvFile" accept=".csv">
       <button id="importBtn" style="background:#64748b;">Import Students</button>
       <div id="importStatus"></div>
-      <hr>
+      <hr style="margin:16px 0;">
       <h3>👥 Students</h3>
       <div id="studentList">No students yet.</div>
+      <hr style="margin:16px 0;">
+      <h3>📥 Data Export</h3>
+      <button id="exportStudentsBtn" style="background:#3b82f6;">Export Students (CSV)</button>
+      <button id="exportAlertsBtn" style="background:#3b82f6; margin-top:8px;">Export Alerts (CSV)</button>
+      <button id="exportBloodBtn" style="background:#3b82f6; margin-top:8px;">Export Blood Logs (CSV)</button>
+      <div id="exportStatus"></div>
     </div>
   </div>
 
@@ -169,6 +185,9 @@
   };
 
   const SCHOOL_ID = 'stcolumbas';
+  const ADMIN_ROLES = ['Principal', 'VP', 'SENCO'];
+  const ALERT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+  const UNSEND_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
@@ -177,12 +196,13 @@
   let currentUser = null;
   let currentUserRole = null;
   let currentUserName = null;
-  let currentSchoolId = SCHOOL_ID;
+  let studentMap = {}; // studentId -> student data
+  let allStudents = [];
 
   const authContainer = document.getElementById('authContainer');
   const mainApp = document.getElementById('mainApp');
 
-  // ============ AUTH UI WIRING ============
+  // ============ AUTH ============
   document.getElementById('signInBtn').addEventListener('click', async () => {
     const email = document.getElementById('emailInput').value.trim();
     const pwd = document.getElementById('passwordInput').value;
@@ -193,28 +213,27 @@
       await auth.signInWithEmailAndPassword(email, pwd);
     } catch (err) {
       errBox.innerText = err.message;
-      console.error('Sign-in error:', err);
+      console.error(err);
     }
   });
 
-  document.getElementById('signUpBtn').addEventListener('click', async () => {
+  document.getElementById('forgotPasswordBtn').addEventListener('click', async () => {
     const email = document.getElementById('emailInput').value.trim();
-    const pwd = document.getElementById('passwordInput').value;
     const errBox = document.getElementById('authError');
-    errBox.innerText = '';
-    if (!email || !pwd) { errBox.innerText = 'Enter email and password'; return; }
-    if (pwd.length < 6) { errBox.innerText = 'Password must be at least 6 characters'; return; }
+    if (!email) { errBox.innerText = 'Enter your email above, then click Forgot password'; return; }
     try {
-      await auth.createUserWithEmailAndPassword(email, pwd);
+      await auth.sendPasswordResetEmail(email);
+      errBox.style.color = 'green';
+      errBox.innerText = '✅ Password reset email sent. Check your inbox.';
     } catch (err) {
+      errBox.style.color = 'red';
       errBox.innerText = err.message;
-      console.error('Sign-up error:', err);
+      console.error(err);
     }
   });
 
   document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
 
-  // ============ AUTH STATE ============
   auth.onAuthStateChanged(async (user) => {
     if (!user) {
       authContainer.style.display = 'block';
@@ -227,13 +246,12 @@
     authContainer.style.display = 'none';
     mainApp.style.display = 'block';
 
-    // Check if staff doc exists
     const staffRef = db.collection(`schools/${SCHOOL_ID}/staff`).doc(user.uid);
     let staffDoc;
     try {
       staffDoc = await staffRef.get();
     } catch (err) {
-      console.error('Error reading staff doc:', err);
+      console.error(err);
       document.getElementById('authError').innerText = 'Permission error. Check your Firestore rules.';
       return;
     }
@@ -243,7 +261,6 @@
       currentUserName = staffDoc.data().name;
       showMainApp();
     } else {
-      // First login: show profile setup
       showProfileSetup();
     }
   });
@@ -265,8 +282,13 @@
     document.getElementById('liveAlertsCard').style.display = 'block';
     document.getElementById('bloodCard').style.display = 'block';
     document.getElementById('bloodHistoryCard').style.display = 'block';
-    document.getElementById('studentManagementCard').style.display = 'block';
     document.getElementById('feedbackCard').style.display = 'block';
+
+    // Admin-only cards
+    if (ADMIN_ROLES.includes(currentUserRole)) {
+      document.getElementById('studentManagementCard').style.display = 'block';
+    }
+
     loadStudents();
     startLiveFeed();
     setupBloodHistory();
@@ -277,15 +299,9 @@
 
   function setupRoleButtons() {
     document.querySelectorAll('.role-option').forEach(btn => {
-      btn.style.background = '#f1f5f9';
-      btn.style.color = '#1e293b';
       btn.onclick = () => {
-        document.querySelectorAll('.role-option').forEach(b => {
-          b.style.background = '#f1f5f9';
-          b.style.color = '#1e293b';
-        });
-        btn.style.background = '#1a5f4c';
-        btn.style.color = 'white';
+        document.querySelectorAll('.role-option').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
         selectedRole = btn.getAttribute('data-role');
       };
     });
@@ -308,7 +324,6 @@
       showMainApp();
     } catch (err) {
       status.innerText = 'Error saving profile: ' + err.message;
-      console.error(err);
     }
   });
 
@@ -318,13 +333,18 @@
     const bloodSelect = document.getElementById('bloodStudentSelect');
     try {
       const snapshot = await db.collection(`schools/${SCHOOL_ID}/students`).get();
-      const students = [];
-      snapshot.forEach(doc => students.push({ id: doc.id, ...doc.data() }));
+      allStudents = [];
+      studentMap = {};
+      snapshot.forEach(doc => {
+        const s = { id: doc.id, ...doc.data() };
+        allStudents.push(s);
+        studentMap[s.id] = s;
+      });
 
       alertSelect.innerHTML = '<option disabled selected>Select student</option>';
       bloodSelect.innerHTML = '<option disabled selected>Select student</option>';
 
-      students.forEach(s => {
+      allStudents.forEach(s => {
         const opt = document.createElement('option');
         opt.value = s.id;
         opt.textContent = `${s.initials} – ${s.fullName || ''} (${s.year || ''})${s.bloodGlucoseRequired ? ' (bloods)' : ''}`;
@@ -340,8 +360,13 @@
 
       const studentListDiv = document.getElementById('studentList');
       let html = '';
-      students.forEach(s => {
-        html += `<div class="student-item"><strong>${s.initials}</strong> · ${s.year || ''}<br>🏥 ${(s.medicalFlags || []).join(', ') || 'None'}<br>🛡️ ${(s.strategies || []).join(', ') || 'None'}</div>`;
+      allStudents.forEach(s => {
+        html += `<div class="student-item">
+          <strong>${escapeHtml(s.initials)}</strong> · ${escapeHtml(s.year || '')}
+          <br>🏥 ${(s.medicalFlags || []).join(', ') || 'None'}
+          <br>🛡️ ${(s.strategies || []).join(', ') || 'None'}
+          ${ADMIN_ROLES.includes(currentUserRole) ? `<button onclick="deleteStudent('${s.id}')" style="background:#fee2e2; color:#b91c1c; margin-top:8px; padding:6px; font-size:0.75rem;">🗑️ Delete</button>` : ''}
+        </div>`;
       });
       studentListDiv.innerHTML = html || 'No students yet. Import CSV.';
     } catch (err) {
@@ -349,33 +374,64 @@
     }
   }
 
+  window.deleteStudent = async (studentId) => {
+    if (!ADMIN_ROLES.includes(currentUserRole)) { alert('Not authorised'); return; }
+    const reason = prompt(`Delete student "${studentId}"?\n\nEnter a reason (this will be logged):`);
+    if (!reason) return;
+    if (!confirm(`Confirm deletion of student ${studentId}?\n\nReason: ${reason}`)) return;
+    try {
+      await db.collection(`schools/${SCHOOL_ID}/students`).doc(studentId).delete();
+      await db.collection(`schools/${SCHOOL_ID}/auditLog`).add({
+        action: 'DELETE_STUDENT',
+        target: studentId,
+        reason: reason,
+        performedBy: currentUserName,
+        performedByUid: currentUser.uid,
+        timestamp: Date.now()
+      });
+      await loadStudents();
+      alert('Student deleted.');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete: ' + err.message);
+    }
+  };
+
   // ============ LIVE FEED ============
   function startLiveFeed() {
     db.collection(`schools/${SCHOOL_ID}/alerts`).orderBy('timestamp', 'desc').onSnapshot(snapshot => {
       const alertsDiv = document.getElementById('alertsList');
       if (snapshot.empty) { alertsDiv.innerHTML = 'No alerts yet'; return; }
       let html = '';
+      const now = Date.now();
       snapshot.forEach(doc => {
         const a = doc.data();
-        if (Date.now() - a.timestamp > 86400000) return;
-        const date = new Date(a.timestamp).toLocaleTimeString();
+        if (now - a.timestamp > ALERT_WINDOW_MS) return; // 7 days
+        const date = new Date(a.timestamp).toLocaleString();
         const ackClass = a.acknowledged ? 'acknowledged' : '';
+        const deletedClass = a.deleted ? 'deleted' : '';
+        const canUnsend = !a.acknowledged && !a.deleted && a.senderUid === currentUser.uid && (now - a.timestamp < UNSEND_WINDOW_MS);
+        const canAdminDelete = ADMIN_ROLES.includes(currentUserRole) && !a.deleted;
+
         html += `
-          <div class="alert-item ${ackClass}">
+          <div class="alert-item ${ackClass} ${deletedClass}">
+            <div class="alert-actions">
+              ${canUnsend ? `<button class="btn-unsend" onclick="unsendAlert('${doc.id}')">↩️ Unsend</button>` : ''}
+              ${canAdminDelete ? `<button class="btn-delete" onclick="adminDeleteAlert('${doc.id}')">🗑️</button>` : ''}
+            </div>
             <div style="font-size:0.7rem; color:#94a3b8;">${date}</div>
-            <span class="alert-student" data-student-id="${a.studentId}">${a.student}</span>
-            <span style="background:#eef2ff; padding:2px 8px; border-radius:20px; margin-left:8px;">${a.type}</span>
-            <div class="alert-message">${a.message}</div>
-            <div style="font-size:0.7rem;">— ${a.initials} (${a.role})</div>
-            ${!a.acknowledged ? `<button class="ack-btn" style="margin-top:8px; background:#e2e8f0; color:#1e293b; border:none; border-radius:20px; padding:4px 12px; width:auto; font-size:0.75rem;" onclick="acknowledgeAlert('${doc.id}')">✓ Acknowledge</button>` : ''}
+            <span class="alert-student" data-student-id="${a.studentId}">${escapeHtml(a.student)}</span>
+            <span style="background:#eef2ff; padding:2px 8px; border-radius:20px; margin-left:8px;">${escapeHtml(a.type)}</span>
+            <div class="alert-message">${escapeHtml(a.message)}</div>
+            <div style="font-size:0.7rem;">— ${escapeHtml(a.initials)} (${escapeHtml(a.role)})</div>
+            ${a.deleted ? `<div style="font-size:0.7rem; color:#b91c1c; margin-top:4px;">Deleted by ${escapeHtml(a.deletedBy || 'admin')} — ${escapeHtml(a.deletedReason || '')}</div>` : ''}
+            ${!a.acknowledged && !a.deleted ? `<button class="ack-btn" style="margin-top:8px; background:#e2e8f0; color:#1e293b; border:none; border-radius:20px; padding:4px 12px; width:auto; font-size:0.75rem;" onclick="acknowledgeAlert('${doc.id}')">✓ Acknowledge</button>` : ''}
           </div>
         `;
       });
       alertsDiv.innerHTML = html;
       setupHoverSnapshot();
-    }, err => {
-      console.error('Live feed error:', err);
-    });
+    }, err => console.error('Live feed error:', err));
   }
 
   window.acknowledgeAlert = async (id) => {
@@ -384,7 +440,37 @@
     } catch (err) { console.error(err); }
   };
 
-  // ============ SEND ALERT ============
+  window.unsendAlert = async (id) => {
+    if (!confirm('Unsend this alert? This cannot be undone.')) return;
+    try {
+      await db.collection(`schools/${SCHOOL_ID}/alerts`).doc(id).delete();
+    } catch (err) { console.error(err); alert('Failed to unsend: ' + err.message); }
+  };
+
+  window.adminDeleteAlert = async (id) => {
+    const reason = prompt('Reason for deleting this alert (will be logged):');
+    if (!reason) return;
+    if (!confirm('Confirm delete?\n\nReason: ' + reason)) return;
+    try {
+      await db.collection(`schools/${SCHOOL_ID}/alerts`).doc(id).update({
+        deleted: true,
+        deletedBy: currentUserName,
+        deletedByUid: currentUser.uid,
+        deletedReason: reason,
+        deletedAt: Date.now()
+      });
+      await db.collection(`schools/${SCHOOL_ID}/auditLog`).add({
+        action: 'DELETE_ALERT',
+        target: id,
+        reason: reason,
+        performedBy: currentUserName,
+        performedByUid: currentUser.uid,
+        timestamp: Date.now()
+      });
+    } catch (err) { console.error(err); alert('Failed: ' + err.message); }
+  };
+
+  // ============ SEND ALERT (with confirm) ============
   document.getElementById('sendAlertBtn').addEventListener('click', async () => {
     const studentSelect = document.getElementById('studentSelect');
     const studentId = studentSelect.value;
@@ -395,6 +481,16 @@
     if (!studentId || studentId === 'Select student') { alert('Please select a student'); return; }
     if (!message) { alert('Enter a message'); return; }
 
+    // ✅ Confirm before send
+    const confirmed = confirm(
+      `Please confirm:\n\n` +
+      `Student: ${studentName}\n` +
+      `Type: ${type}\n` +
+      `Message: ${message}\n\n` +
+      `Send this alert?`
+    );
+    if (!confirmed) return;
+
     try {
       await db.collection(`schools/${SCHOOL_ID}/alerts`).add({
         student: studentName,
@@ -402,14 +498,16 @@
         type, message,
         initials: currentUserName,
         role: currentUserRole,
+        senderUid: currentUser.uid,
         timestamp: Date.now(),
-        acknowledged: false
+        acknowledged: false,
+        deleted: false
       });
       document.getElementById('message').value = '';
       document.getElementById('sendStatus').innerHTML = '✅ Alert sent';
       setTimeout(() => document.getElementById('sendStatus').innerHTML = '', 2000);
     } catch (err) {
-      console.error('Send alert error:', err);
+      console.error(err);
       alert('Failed to send alert: ' + err.message);
     }
   });
@@ -433,6 +531,7 @@
         reading: reading,
         notes: notes,
         recordedBy: currentUserName,
+        recordedByUid: currentUser.uid,
         timestamp: Date.now(),
         type: 'BLOOD_LOG'
       });
@@ -441,7 +540,7 @@
       document.getElementById('bloodNotes').value = '';
       setTimeout(() => document.getElementById('bloodStatus').innerHTML = '', 2000);
     } catch (err) {
-      console.error('Blood save error:', err);
+      console.error(err);
       alert('Failed to save reading: ' + err.message);
     }
   });
@@ -459,9 +558,8 @@
           let html = '';
           snap.forEach(doc => {
             const b = doc.data();
-            const date = new Date(b.timestamp).toLocaleDateString();
-            const time = new Date(b.timestamp).toLocaleTimeString();
-            html += `<div class="blood-log-entry"><strong>${date} ${time}</strong> – ${b.student} – ${b.reading} mmol/L – ${b.recordedBy}${b.notes ? ` (${b.notes})` : ''}</div>`;
+            const date = new Date(b.timestamp).toLocaleString();
+            html += `<div class="blood-log-entry"><strong>${date}</strong> – ${escapeHtml(b.student)} – ${b.reading} mmol/L – ${escapeHtml(b.recordedBy)}${b.notes ? ` (${escapeHtml(b.notes)})` : ''}</div>`;
           });
           content.innerHTML = html || '<div>No readings yet</div>';
         });
@@ -474,26 +572,23 @@
   const hoverCard = document.getElementById('hoverCard');
 
   async function showHoverCard(event, studentId) {
-    try {
-      const doc = await db.collection(`schools/${SCHOOL_ID}/students`).doc(studentId).get();
-      if (!doc.exists) return;
-      const data = doc.data();
-      hoverCard.innerHTML = `
-        <h4>${data.fullName || data.initials}</h4>
-        <p><strong>🩺 Medical:</strong> ${(data.medicalFlags || []).join(', ') || 'None'}</p>
-        <p><strong>⚠️ Triggers:</strong> ${(data.triggers || []).join(', ') || 'None'}</p>
-        <p><strong>✅ Strategies:</strong> ${(data.strategies || []).join(', ') || 'None'}</p>
-        <p><strong>👥 Key staff:</strong> ${(data.keyStaff || []).join(', ') || 'None'}</p>
-      `;
-      hoverCard.style.display = 'block';
-      const rect = event.target.getBoundingClientRect();
-      let left = rect.right + 8;
-      let top = rect.top;
-      if (left + 250 > window.innerWidth) left = rect.left - 258;
-      if (top + 200 > window.innerHeight) top = window.innerHeight - 210;
-      hoverCard.style.left = left + 'px';
-      hoverCard.style.top = top + 'px';
-    } catch (err) { console.error(err); }
+    const data = studentMap[studentId];
+    if (!data) return;
+    hoverCard.innerHTML = `
+      <h4>${escapeHtml(data.fullName || data.initials)}</h4>
+      <p><strong>🩺 Medical:</strong> ${(data.medicalFlags || []).join(', ') || 'None'}</p>
+      <p><strong>⚠️ Triggers:</strong> ${(data.triggers || []).join(', ') || 'None'}</p>
+      <p><strong>✅ Strategies:</strong> ${(data.strategies || []).join(', ') || 'None'}</p>
+      <p><strong>👥 Key staff:</strong> ${(data.keyStaff || []).join(', ') || 'None'}</p>
+    `;
+    hoverCard.style.display = 'block';
+    const rect = event.target.getBoundingClientRect();
+    let left = rect.right + 8;
+    let top = rect.top;
+    if (left + 250 > window.innerWidth) left = rect.left - 258;
+    if (top + 200 > window.innerHeight) top = window.innerHeight - 210;
+    hoverCard.style.left = left + 'px';
+    hoverCard.style.top = top + 'px';
   }
 
   function setupHoverSnapshot() {
@@ -516,6 +611,7 @@
   };
 
   document.getElementById('importBtn').addEventListener('click', () => {
+    if (!ADMIN_ROLES.includes(currentUserRole)) { alert('Not authorised'); return; }
     const file = document.getElementById('csvFile').files[0];
     if (!file) { document.getElementById('importStatus').innerText = 'Select a CSV file'; return; }
     Papa.parse(file, {
@@ -524,8 +620,9 @@
       complete: async (results) => {
         const students = results.data;
         let success = 0;
+        let errors = [];
         for (const student of students) {
-          if (!student.initials) continue;
+          if (!student.initials) { errors.push('Missing initials'); continue; }
           ['medicalFlags', 'triggers', 'strategies', 'keyStaff', 'typicalLocations'].forEach(f => {
             if (student[f] && typeof student[f] === 'string') {
               student[f] = student[f].split(',').map(s => s.trim()).filter(s => s);
@@ -537,9 +634,10 @@
           try {
             await db.collection(`schools/${SCHOOL_ID}/students`).doc(student.initials).set(student, { merge: true });
             success++;
-          } catch(err) { console.error(err); }
+          } catch(err) { errors.push(`${student.initials}: ${err.message}`); }
         }
-        document.getElementById('importStatus').innerHTML = `✅ Imported ${success} students`;
+        document.getElementById('importStatus').innerHTML =
+          `✅ Imported ${success} students` + (errors.length ? `<br>⚠️ ${errors.length} issues` : '');
         await loadStudents();
       },
       error: (err) => {
@@ -549,16 +647,80 @@
     });
   });
 
+  // ============ DATA EXPORT ============
+  function arrayToCsv(rows) {
+    if (!rows.length) return '';
+    const headers = Object.keys(rows[0]);
+    const escape = (v) => {
+      if (v === null || v === undefined) return '';
+      const s = Array.isArray(v) ? v.join('|') : String(v);
+      return `"${s.replace(/"/g, '""')}"`;
+    };
+    const lines = [headers.join(',')];
+    rows.forEach(r => lines.push(headers.map(h => escape(r[h])).join(',')));
+    return lines.join('\n');
+  }
+
+  function downloadCsv(filename, csv) {
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  document.getElementById('exportStudentsBtn').addEventListener('click', async () => {
+    if (!ADMIN_ROLES.includes(currentUserRole)) return;
+    const snap = await db.collection(`schools/${SCHOOL_ID}/students`).get();
+    const rows = [];
+    snap.forEach(doc => rows.push({ id: doc.id, ...doc.data() }));
+    downloadCsv('senwear-students.csv', arrayToCsv(rows));
+    document.getElementById('exportStatus').innerText = '✅ Students exported';
+  });
+
+  document.getElementById('exportAlertsBtn').addEventListener('click', async () => {
+    if (!ADMIN_ROLES.includes(currentUserRole)) return;
+    const snap = await db.collection(`schools/${SCHOOL_ID}/alerts`).orderBy('timestamp', 'desc').get();
+    const rows = [];
+    snap.forEach(doc => rows.push({ id: doc.id, ...doc.data() }));
+    downloadCsv('senwear-alerts.csv', arrayToCsv(rows));
+    document.getElementById('exportStatus').innerText = '✅ Alerts exported';
+  });
+
+  document.getElementById('exportBloodBtn').addEventListener('click', async () => {
+    if (!ADMIN_ROLES.includes(currentUserRole)) return;
+    const snap = await db.collection(`schools/${SCHOOL_ID}/bloodLogs`).orderBy('timestamp', 'desc').get();
+    const rows = [];
+    snap.forEach(doc => rows.push({ id: doc.id, ...doc.data() }));
+    downloadCsv('senwear-bloodlogs.csv', arrayToCsv(rows));
+    document.getElementById('exportStatus').innerText = '✅ Blood logs exported';
+  });
+
   // ============ FEEDBACK ============
   document.getElementById('feedbackButton').addEventListener('click', () => {
     window.open('https://forms.gle/your-feedback-link-here', '_blank');
   });
 
-  // ============ SERVICE WORKER (caching only) ============
+  // ============ ESCAPE HTML ============
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).replace(/[&<>"']/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      if (m === '"') return '&quot;';
+      if (m === "'") return '&#39;';
+      return m;
+    });
+  }
+
+  // ============ SERVICE WORKER ============
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
-      .then(() => console.log('Service worker registered'))
-      .catch(err => console.log('SW registration failed:', err));
+      .then(() => console.log('SW registered'))
+      .catch(err => console.log('SW failed:', err));
   }
 </script>
 </body>
