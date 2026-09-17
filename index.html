@@ -27,7 +27,7 @@
     .alert-item { background: #f8fafc; border-radius: 16px; padding: 16px; margin-bottom: 12px; border-left: 4px solid #1a5f4c; position: relative; }
     .alert-item.acknowledged { opacity: 0.6; border-left-color: #94a3b8; }
     .alert-item.deleted { opacity: 0.4; border-left-color: #dc2626; text-decoration: line-through; }
-    .alert-student { font-weight: bold; color: #1a5f4c; cursor: pointer; text-decoration: underline; }
+    .alert-student { font-weight: bold; color: #1a5f4c; cursor: help; text-decoration: underline dotted; }
     .alert-actions { position: absolute; top: 12px; right: 12px; display: flex; gap: 4px; }
     .alert-actions button { width: auto; padding: 4px 10px; font-size: 0.7rem; border-radius: 12px; margin: 0; }
     .btn-delete { background: #fee2e2; color: #b91c1c; }
@@ -242,8 +242,9 @@
 
   const SCHOOL_ID = 'stcolumbas';
   const ADMIN_ROLES = ['Principal', 'VP', 'SENCO'];
-  const ALERT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-  const UNSEND_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
+  const ALERT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+  const UNSEND_WINDOW_MS = 5 * 60 * 1000;
+  const LIVE_FEED_PREVIEW = 5;
 
   firebase.initializeApp(firebaseConfig);
   const auth = firebase.auth();
@@ -523,41 +524,79 @@
   };
 
   // ============ LIVE FEED ============
-  function startLiveFeed() {
-    db.collection(`schools/${SCHOOL_ID}/alerts`).orderBy('timestamp', 'desc').onSnapshot(snapshot => {
-      const alertsDiv = document.getElementById('alertsList');
-      if (snapshot.empty) { alertsDiv.innerHTML = 'No alerts yet'; return; }
-      let html = '';
-      const now = Date.now();
-      snapshot.forEach(doc => {
-        const a = doc.data();
-        if (now - a.timestamp > ALERT_WINDOW_MS) return;
-        const date = new Date(a.timestamp).toLocaleString();
-        const ackClass = a.acknowledged ? 'acknowledged' : '';
-        const deletedClass = a.deleted ? 'deleted' : '';
-        const canUnsend = !a.acknowledged && !a.deleted && a.senderUid === currentUser.uid && (now - a.timestamp < UNSEND_WINDOW_MS);
-        const canAdminDelete = ADMIN_ROLES.includes(currentUserRole) && !a.deleted;
+  let liveFeedUnsub = null;
 
-        html += `
-          <div class="alert-item ${ackClass} ${deletedClass}">
-            <div class="alert-actions">
-              ${canUnsend ? `<button class="btn-unsend" onclick="unsendAlert('${doc.id}')">↩️ Unsend</button>` : ''}
-              ${canAdminDelete ? `<button class="btn-delete" onclick="adminDeleteAlert('${doc.id}')">🗑️</button>` : ''}
-            </div>
-            <div style="font-size:0.7rem; color:#94a3b8;">${date}</div>
-            <span class="alert-student" data-student-id="${a.studentId}">${escapeHtml(a.student)}</span>
-            <span style="background:#eef2ff; padding:2px 8px; border-radius:20px; margin-left:8px;">${escapeHtml(a.type)}</span>
-            <div class="alert-message">${escapeHtml(a.message)}</div>
-            <div style="font-size:0.7rem;">— ${escapeHtml(a.initials)} (${escapeHtml(a.role)})</div>
-            ${a.deleted ? `<div style="font-size:0.7rem; color:#b91c1c; margin-top:4px;">Deleted by ${escapeHtml(a.deletedBy || 'admin')} — ${escapeHtml(a.deletedReason || '')}</div>` : ''}
-            ${!a.acknowledged && !a.deleted ? `<button class="ack-btn" style="margin-top:8px; background:#e2e8f0; color:#1e293b; border:none; border-radius:20px; padding:4px 12px; width:auto; font-size:0.75rem;" onclick="acknowledgeAlert('${doc.id}')">✓ Acknowledge</button>` : ''}
-          </div>
-        `;
-      });
-      alertsDiv.innerHTML = html;
-      setupHoverSnapshot();
-    }, err => console.error('Live feed error:', err));
+  function startLiveFeed() {
+    if (liveFeedUnsub) { liveFeedUnsub(); liveFeedUnsub = null; }
+
+    liveFeedUnsub = db.collection(`schools/${SCHOOL_ID}/alerts`)
+      .orderBy('timestamp', 'desc')
+      .onSnapshot(snapshot => {
+        renderLiveFeed(snapshot);
+      }, err => console.error('Live feed error:', err));
   }
+
+  function renderLiveFeed(snapshot) {
+    const alertsDiv = document.getElementById('alertsList');
+
+    const alertsArray = [];
+    snapshot.forEach(doc => {
+      const a = doc.data();
+      if (Date.now() - a.timestamp > ALERT_WINDOW_MS) return;
+      alertsArray.push({ id: doc.id, data: a });
+    });
+
+    if (alertsArray.length === 0) { alertsDiv.innerHTML = 'No alerts yet'; return; }
+
+    const showAll = document.getElementById('liveAlertsCard').dataset.showAll === 'true';
+    const visible = showAll ? alertsArray : alertsArray.slice(0, LIVE_FEED_PREVIEW);
+
+    let html = '';
+    const now = Date.now();
+    visible.forEach(({ id: docId, data: a }) => {
+      const date = new Date(a.timestamp).toLocaleString();
+      const ackClass = a.acknowledged ? 'acknowledged' : '';
+      const deletedClass = a.deleted ? 'deleted' : '';
+      const canUnsend = !a.acknowledged && !a.deleted && a.senderUid === currentUser.uid && (now - a.timestamp < UNSEND_WINDOW_MS);
+      const canAdminDelete = ADMIN_ROLES.includes(currentUserRole) && !a.deleted;
+
+      html += `
+        <div class="alert-item ${ackClass} ${deletedClass}">
+          <div class="alert-actions">
+            ${canUnsend ? `<button class="btn-unsend" onclick="unsendAlert('${docId}')">↩️ Unsend</button>` : ''}
+            ${canAdminDelete ? `<button class="btn-delete" onclick="adminDeleteAlert('${docId}')">🗑️</button>` : ''}
+          </div>
+          <div style="font-size:0.7rem; color:#94a3b8;">${date}</div>
+          <span class="alert-student" data-student-id="${a.studentId}">${escapeHtml(a.student)}</span>
+          <span style="background:#eef2ff; padding:2px 8px; border-radius:20px; margin-left:8px;">${escapeHtml(a.type)}</span>
+          <div class="alert-message">${escapeHtml(a.message)}</div>
+          <div style="font-size:0.7rem;">— ${escapeHtml(a.initials)} (${escapeHtml(a.role)})</div>
+          ${a.deleted ? `<div style="font-size:0.7rem; color:#b91c1c; margin-top:4px;">Deleted by ${escapeHtml(a.deletedBy || 'admin')} — ${escapeHtml(a.deletedReason || '')}</div>` : ''}
+          ${!a.acknowledged && !a.deleted ? `<button class="ack-btn" style="margin-top:8px; background:#e2e8f0; color:#1e293b; border:none; border-radius:20px; padding:4px 12px; width:auto; font-size:0.75rem;" onclick="acknowledgeAlert('${docId}')">✓ Acknowledge</button>` : ''}
+        </div>
+      `;
+    });
+
+    if (alertsArray.length > LIVE_FEED_PREVIEW) {
+      if (showAll) {
+        html += `<button onclick="toggleShowAll(false)" style="background:#e2e8f0; color:#1e293b; margin-top:8px; width:100%;">▲ Show only latest ${LIVE_FEED_PREVIEW}</button>`;
+      } else {
+        const hidden = alertsArray.length - LIVE_FEED_PREVIEW;
+        html += `<button onclick="toggleShowAll(true)" style="background:#e2e8f0; color:#1e293b; margin-top:8px; width:100%;">▼ Show ${hidden} more alert${hidden > 1 ? 's' : ''}</button>`;
+      }
+    }
+
+    alertsDiv.innerHTML = html;
+    setupHoverSnapshot();
+  }
+
+  window.toggleShowAll = (show) => {
+    document.getElementById('liveAlertsCard').dataset.showAll = show ? 'true' : 'false';
+    // Re-render from a fresh snapshot without re-subscribing
+    db.collection(`schools/${SCHOOL_ID}/alerts`).orderBy('timestamp', 'desc').get()
+      .then(snap => renderLiveFeed(snap))
+      .catch(err => console.error('Toggle error:', err));
+  };
 
   window.acknowledgeAlert = async (id) => {
     try {
@@ -861,6 +900,7 @@
         document.getElementById('importStatus').innerHTML =
           `✅ Imported ${success} students` + (errors.length ? `<br>⚠️ ${errors.length} issues` : '');
         await loadStudents();
+        setupBloodHistory();
       },
       error: (err) => {
         document.getElementById('importStatus').innerHTML = '❌ Error parsing CSV';
