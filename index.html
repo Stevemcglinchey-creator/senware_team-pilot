@@ -247,7 +247,7 @@
   const authContainer = document.getElementById('authContainer');
   const mainApp = document.getElementById('mainApp');
 
-  // ============ NOTIFICATIONS & BADGE ============
+  // ============ SEEN ALERTS ============
   function getSeenAlerts() {
     try { return JSON.parse(localStorage.getItem(SEEN_ALERTS_KEY) || '[]'); }
     catch (e) { return []; }
@@ -259,6 +259,39 @@
     catch (e) { console.log('Could not save seen alerts'); }
   }
 
+  // ============ BADGE CLEARING ============
+  async function clearBadgeCount() {
+    try {
+      if (navigator.clearAppBadge) {
+        await navigator.clearAppBadge();
+      }
+      const badgeDB = await new Promise((resolve, reject) => {
+        const req = indexedDB.open('senwear', 1);
+        req.onupgradeneeded = (e) => {
+          const d = e.target.result;
+          if (!d.objectStoreNames.contains('badge')) {
+            d.createObjectStore('badge', { keyPath: 'key' });
+          }
+        };
+        req.onsuccess = (e) => resolve(e.target.result);
+        req.onerror = (e) => reject(e);
+      });
+      const tx = badgeDB.transaction('badge', 'readwrite');
+      tx.objectStore('badge').put({ key: 'count', value: 0 });
+    } catch (e) {
+      console.error('Clear badge failed:', e);
+    }
+  }
+
+  let badgeClearTimeout;
+  function scheduleBadgeClear() {
+    clearTimeout(badgeClearTimeout);
+    badgeClearTimeout = setTimeout(() => {
+      clearBadgeCount();
+    }, 3000);
+  }
+
+  // ============ FCM TOKEN ============
   async function requestFCMToken() {
     if (!currentUser) return;
     try {
@@ -280,6 +313,7 @@
 
   messaging.onMessage((payload) => {
     console.log('Foreground message received.', payload);
+    if (ADMIN_ROLES.includes(currentUserRole)) return;
     if (payload.notification) {
       new Notification(payload.notification.title, {
         body: payload.notification.body,
@@ -287,14 +321,6 @@
       });
     }
   });
-
-  function updateBadge(count) {
-    if (!navigator.setAppBadge) return;
-    try {
-      if (count > 0) navigator.setAppBadge(count).catch(() => {});
-      else navigator.clearAppBadge().catch(() => {});
-    } catch (e) {}
-  }
 
   function checkAndShowNotifBanner() {
     const banner = document.getElementById('notifBanner');
@@ -316,7 +342,7 @@
     }
   });
 
-  // ============ CUSTOM MODAL SYSTEM ============
+  // ============ CUSTOM MODALS ============
   function showConfirm({ title, message, detail, confirmText = 'Confirm', danger = false }) {
     return new Promise((resolve) => {
       const modal = document.getElementById('confirmModal');
@@ -401,7 +427,6 @@
       authContainer.style.display = 'block';
       mainApp.style.display = 'none';
       currentUser = null;
-      updateBadge(0);
       return;
     }
     currentUser = user;
@@ -449,6 +474,8 @@
     checkAndShowNotifBanner();
     loadStudents().then(() => { setupBloodHistory(); });
     startLiveFeed();
+    // Clear badge when the app is opened
+    scheduleBadgeClear();
   }
 
   // ============ PROFILE SETUP ============
@@ -576,22 +603,11 @@
       alertsArray.push({ id: doc.id, data: a });
     });
 
-    // Badge: count only unacknowledged alerts from OTHER people
-    const unackedCount = alertsArray.filter(a =>
-      !a.data.acknowledged &&
-      !a.data.deleted &&
-      a.data.senderUid !== currentUser.uid
-    ).length;
-    updateBadge(unackedCount);
-
+    // No live badge updates — badge is handled by the service worker + focus events
     const seenIds = getSeenAlerts();
     const currentIds = alertsArray.map(a => a.id);
-    const newAlerts = alertsArray.filter(a => !seenIds.includes(a.id) && !a.data.deleted && !a.data.acknowledged && a.data.senderUid !== currentUser.uid);
-    if (!isFirstLoad && newAlerts.length > 0) {
-      newAlerts.forEach(a => showDesktopNotification(a.data));
-    }
-    isFirstLoad = false;
     setSeenAlerts([...new Set([...seenIds, ...currentIds])]);
+
     if (alertsArray.length === 0) { alertsDiv.innerHTML = 'No alerts yet'; return; }
     const showAll = document.getElementById('liveAlertsCard').dataset.showAll === 'true';
     const visible = showAll ? alertsArray : alertsArray.slice(0, LIVE_FEED_PREVIEW);
@@ -918,19 +934,15 @@
     });
   }
 
-  function showDesktopNotification(alert) {
-    if (!('Notification' in window)) return;
-    if (Notification.permission !== 'granted') return;
-    try {
-      const notif = new Notification('SENwear — New Alert', {
-        body: `${alert.student} (${alert.type})\n${alert.message}`,
-        icon: 'icon-192.png', badge: 'icon-192.png',
-        tag: 'senwear-alert-' + alert.timestamp, requireInteraction: false
-      });
-      notif.onclick = () => { window.focus(); notif.close(); };
-      setTimeout(() => { try { notif.close(); } catch (e) {} }, 15000);
-    } catch (e) { console.log('Notification failed:', e); }
-  }
+  // ============ BADGE ON FOCUS ============
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      scheduleBadgeClear();
+    }
+  });
+  window.addEventListener('focus', () => {
+    scheduleBadgeClear();
+  });
 
   // ============ SERVICE WORKER ============
   if ('serviceWorker' in navigator) {
