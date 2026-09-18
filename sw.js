@@ -1,9 +1,5 @@
-const CACHE_NAME = 'senwear-v3';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/manifest.json'
-];
+const CACHE_NAME = 'senwear-v6';
+const urlsToCache = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', event => {
   event.waitUntil(
@@ -26,3 +22,4 @@ self.addEventListener('fetch', event => {
     caches.match(event.request).then(response => response || fetch(event.request))
   );
 });
+
