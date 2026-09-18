@@ -1,4 +1,4 @@
-const CACHE_NAME = 'senwear-v6';
+const CACHE_NAME = 'senwear-v8';
 const urlsToCache = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', event => {
