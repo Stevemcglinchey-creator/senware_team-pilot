@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>SENwear</title>
-  <link rel="manifest" href="/manifest.json">
+  <link rel="manifest" href="manifest.json">
   <style>
     * { box-sizing: border-box; margin: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #f5f7fb; margin: 0; padding: 20px; }
@@ -283,7 +283,7 @@
     if (payload.notification) {
       new Notification(payload.notification.title, {
         body: payload.notification.body,
-        icon: '/icon-192.png'
+        icon: 'icon-192.png'
       });
     }
   });
@@ -575,8 +575,15 @@
       if (Date.now() - a.timestamp > ALERT_WINDOW_MS) return;
       alertsArray.push({ id: doc.id, data: a });
     });
-    const unackedCount = alertsArray.filter(a => !a.data.acknowledged && !a.data.deleted).length;
+
+    // Badge: count only unacknowledged alerts from OTHER people
+    const unackedCount = alertsArray.filter(a =>
+      !a.data.acknowledged &&
+      !a.data.deleted &&
+      a.data.senderUid !== currentUser.uid
+    ).length;
     updateBadge(unackedCount);
+
     const seenIds = getSeenAlerts();
     const currentIds = alertsArray.map(a => a.id);
     const newAlerts = alertsArray.filter(a => !seenIds.includes(a.id) && !a.data.deleted && !a.data.acknowledged && a.data.senderUid !== currentUser.uid);
@@ -917,7 +924,7 @@
     try {
       const notif = new Notification('SENwear — New Alert', {
         body: `${alert.student} (${alert.type})\n${alert.message}`,
-        icon: '/icon-192.png', badge: '/icon-192.png',
+        icon: 'icon-192.png', badge: 'icon-192.png',
         tag: 'senwear-alert-' + alert.timestamp, requireInteraction: false
       });
       notif.onclick = () => { window.focus(); notif.close(); };
@@ -927,7 +934,7 @@
 
   // ============ SERVICE WORKER ============
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/firebase-messaging-sw.js')
+    navigator.serviceWorker.register('firebase-messaging-sw.js')
       .then(() => console.log('FCM SW registered'))
       .catch(err => console.log('FCM SW failed:', err));
   }
