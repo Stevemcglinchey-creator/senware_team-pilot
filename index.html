@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>SENwear</title>
   <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon-192.png">
   <style>
     * { box-sizing: border-box; margin: 0; }
     body { font-family: system-ui, -apple-system, sans-serif; background: #f5f7fb; margin: 0; padding: 20px; }
@@ -311,15 +312,9 @@
     }
   }
 
+  // Foreground push handler — no popup, Live Feed updates automatically
   messaging.onMessage((payload) => {
-    console.log('Foreground message received.', payload);
-    if (ADMIN_ROLES.includes(currentUserRole)) return;
-    if (payload.notification) {
-      new Notification(payload.notification.title, {
-        body: payload.notification.body,
-        icon: 'icon-192.png'
-      });
-    }
+    console.log('[SENwear] Foreground push received:', payload);
   });
 
   function checkAndShowNotifBanner() {
@@ -385,6 +380,16 @@
       document.getElementById('reasonCancel').onclick = onCancel;
       modal.onclick = (e) => { if (e.target === modal) onCancel(); };
       input.onkeydown = (e) => { if (e.key === 'Enter') onConfirm(); };
+    });
+  }
+
+  // Simple info modal — replaces browser alert()
+  function showInfo(message, title = 'SENwear') {
+    return showConfirm({
+      title: title,
+      message: message,
+      detail: '',
+      confirmText: 'OK'
     });
   }
 
@@ -474,7 +479,6 @@
     checkAndShowNotifBanner();
     loadStudents().then(() => { setupBloodHistory(); });
     startLiveFeed();
-    // Clear badge when the app is opened
     scheduleBadgeClear();
   }
 
@@ -558,7 +562,7 @@
   }
 
   window.deleteStudent = async (studentId) => {
-    if (!ADMIN_ROLES.includes(currentUserRole)) { alert('Not authorised'); return; }
+    if (!ADMIN_ROLES.includes(currentUserRole)) { await showInfo('Not authorised'); return; }
     const reason = await showReasonInput({ title: `Delete student ${studentId}?`, placeholder: 'Reason (e.g., student left the school)' });
     if (!reason) return;
     const confirmed = await showConfirm({
@@ -576,16 +580,15 @@
         performedBy: currentUserName, performedByUid: currentUser.uid, timestamp: Date.now()
       });
       await loadStudents();
-      alert('Student deleted.');
+      await showInfo('Student deleted.');
     } catch (err) {
       console.error(err);
-      alert('Failed to delete: ' + err.message);
+      await showInfo('Failed to delete: ' + err.message);
     }
   };
 
   // ============ LIVE FEED ============
   let liveFeedUnsub = null;
-  let isFirstLoad = true;
 
   function startLiveFeed() {
     if (liveFeedUnsub) { liveFeedUnsub(); liveFeedUnsub = null; }
@@ -603,7 +606,6 @@
       alertsArray.push({ id: doc.id, data: a });
     });
 
-    // No live badge updates — badge is handled by the service worker + focus events
     const seenIds = getSeenAlerts();
     const currentIds = alertsArray.map(a => a.id);
     setSeenAlerts([...new Set([...seenIds, ...currentIds])]);
@@ -664,7 +666,7 @@
     const confirmed = await showConfirm({ title: 'Unsend alert?', message: 'This will remove the alert immediately. This cannot be undone.', detail: '', confirmText: '↩️ Unsend', danger: true });
     if (!confirmed) return;
     try { await db.collection(`schools/${SCHOOL_ID}/alerts`).doc(id).delete(); }
-    catch (err) { console.error(err); alert('Failed to unsend: ' + err.message); }
+    catch (err) { console.error(err); await showInfo('Failed to unsend: ' + err.message); }
   };
 
   window.adminDeleteAlert = async (id) => {
@@ -675,7 +677,7 @@
     try {
       await db.collection(`schools/${SCHOOL_ID}/alerts`).doc(id).update({ deleted: true, deletedBy: currentUserName, deletedByUid: currentUser.uid, deletedReason: reason, deletedAt: Date.now() });
       await db.collection(`schools/${SCHOOL_ID}/auditLog`).add({ action: 'DELETE_ALERT', target: id, reason: reason, performedBy: currentUserName, performedByUid: currentUser.uid, timestamp: Date.now() });
-    } catch (err) { console.error(err); alert('Failed: ' + err.message); }
+    } catch (err) { console.error(err); await showInfo('Failed: ' + err.message); }
   };
 
   // ============ SEND ALERT ============
@@ -685,8 +687,8 @@
     const studentName = studentSelect.options[studentSelect.selectedIndex]?.text.split(' – ')[0];
     const type = document.getElementById('type').value;
     const message = document.getElementById('message').value.trim();
-    if (!studentId || studentId === 'Select student') { alert('Please select a student'); return; }
-    if (!message) { alert('Enter a message'); return; }
+    if (!studentId || studentId === 'Select student') { await showInfo('Please select a student'); return; }
+    if (!message) { await showInfo('Enter a message'); return; }
     const confirmed = await showConfirm({
       title: 'Send alert?',
       message: 'Please confirm the details below:',
@@ -703,7 +705,7 @@
       document.getElementById('message').value = '';
       document.getElementById('sendStatus').innerHTML = '✅ Alert sent';
       setTimeout(() => document.getElementById('sendStatus').innerHTML = '', 2000);
-    } catch (err) { console.error(err); alert('Failed to send alert: ' + err.message); }
+    } catch (err) { console.error(err); await showInfo('Failed to send alert: ' + err.message); }
   });
 
   // ============ BLOOD GLUCOSE ============
@@ -713,9 +715,9 @@
     const studentName = bloodSelect.options[bloodSelect.selectedIndex]?.text;
     const reading = parseFloat(document.getElementById('bloodReading').value.trim());
     const notes = document.getElementById('bloodNotes').value.trim();
-    if (!studentId || studentId === 'Select student') { alert('Select student'); return; }
-    if (isNaN(reading)) { alert('Enter a valid number'); return; }
-    if (reading < 1 || reading > 40) { alert('Reading looks unusual. Please check.'); return; }
+    if (!studentId || studentId === 'Select student') { await showInfo('Select a student'); return; }
+    if (isNaN(reading)) { await showInfo('Enter a valid number'); return; }
+    if (reading < 1 || reading > 40) { await showInfo('Reading looks unusual. Please check.'); return; }
     try {
       await db.collection(`schools/${SCHOOL_ID}/bloodLogs`).add({
         student: studentName, studentId: studentId, reading: reading, notes: notes,
@@ -725,7 +727,7 @@
       document.getElementById('bloodReading').value = '';
       document.getElementById('bloodNotes').value = '';
       setTimeout(() => document.getElementById('bloodStatus').innerHTML = '', 2000);
-    } catch (err) { console.error(err); alert('Failed to save reading: ' + err.message); }
+    } catch (err) { console.error(err); await showInfo('Failed to save reading: ' + err.message); }
   });
 
   // ============ BLOOD HISTORY ============
@@ -838,7 +840,7 @@
   };
 
   document.getElementById('importBtn').addEventListener('click', () => {
-    if (!ADMIN_ROLES.includes(currentUserRole)) { alert('Not authorised'); return; }
+    if (!ADMIN_ROLES.includes(currentUserRole)) { showInfo('Not authorised'); return; }
     const file = document.getElementById('csvFile').files[0];
     if (!file) { document.getElementById('importStatus').innerText = 'Select a CSV file'; return; }
     Papa.parse(file, {
