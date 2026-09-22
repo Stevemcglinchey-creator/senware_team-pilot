@@ -12,7 +12,6 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// ============ IndexedDB badge counter ============
 function openBadgeDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open('senwear', 1);
@@ -46,20 +45,24 @@ async function incrementBadge() {
   }
 }
 
-// ============ Background push handler ============
+// FCM auto-displays the notification. We only increment the badge here.
 messaging.onBackgroundMessage((payload) => {
-  console.log('[SW] Background push received', payload);
-
-  const title = payload.notification?.title || 'SENwear';
-  const body = payload.notification?.body || 'New alert';
-
-  self.registration.showNotification(title, {
-    body: body,
-    icon: 'icon-192.png',
-    badge: 'icon-192.png',
-    tag: 'senwear-' + Date.now()
-  });
-
-  // Increment the badge because the app is not active
+  console.log('[SENwear SW] Background push received:', payload);
   incrementBadge();
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes('senware_team-pilot') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow('https://stevemcglinchey-creator.github.io/senware_team-pilot/');
+      }
+    })
+  );
 });
