@@ -298,7 +298,18 @@
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
-        const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+        // Register the service worker explicitly at the correct subdirectory path
+        const registration = await navigator.serviceWorker.register('firebase-messaging-sw.js', {
+          scope: './'
+        });
+        console.log('SW registered with scope:', registration.scope);
+
+        // Pass the registration to getToken so Firebase uses THIS worker
+        const token = await messaging.getToken({
+          vapidKey: VAPID_KEY,
+          serviceWorkerRegistration: registration
+        });
+
         if (token) {
           await db.collection(`schools/${SCHOOL_ID}/staff`).doc(currentUser.uid).update({
             fcmToken: token,
