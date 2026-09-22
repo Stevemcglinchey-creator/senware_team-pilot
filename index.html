@@ -312,7 +312,6 @@
     }
   }
 
-  // Foreground push handler — no popup, Live Feed updates automatically
   messaging.onMessage((payload) => {
     console.log('[SENwear] Foreground push received:', payload);
   });
@@ -383,7 +382,6 @@
     });
   }
 
-  // Simple info modal — replaces browser alert()
   function showInfo(message, title = 'SENwear') {
     return showConfirm({
       title: title,
