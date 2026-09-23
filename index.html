@@ -248,7 +248,6 @@
   const authContainer = document.getElementById('authContainer');
   const mainApp = document.getElementById('mainApp');
 
-  // ============ SEEN ALERTS ============
   function getSeenAlerts() {
     try { return JSON.parse(localStorage.getItem(SEEN_ALERTS_KEY) || '[]'); }
     catch (e) { return []; }
@@ -257,15 +256,12 @@
   function setSeenAlerts(ids) {
     const trimmed = ids.slice(-200);
     try { localStorage.setItem(SEEN_ALERTS_KEY, JSON.stringify(trimmed)); }
-    catch (e) { console.log('Could not save seen alerts'); }
+    catch (e) {}
   }
 
-  // ============ BADGE CLEARING ============
   async function clearBadgeCount() {
     try {
-      if (navigator.clearAppBadge) {
-        await navigator.clearAppBadge();
-      }
+      if (navigator.clearAppBadge) await navigator.clearAppBadge();
       const badgeDB = await new Promise((resolve, reject) => {
         const req = indexedDB.open('senwear', 1);
         req.onupgradeneeded = (e) => {
@@ -279,43 +275,27 @@
       });
       const tx = badgeDB.transaction('badge', 'readwrite');
       tx.objectStore('badge').put({ key: 'count', value: 0 });
-    } catch (e) {
-      console.error('Clear badge failed:', e);
-    }
+    } catch (e) {}
   }
 
   let badgeClearTimeout;
   function scheduleBadgeClear() {
     clearTimeout(badgeClearTimeout);
-    badgeClearTimeout = setTimeout(() => {
-      clearBadgeCount();
-    }, 3000);
+    badgeClearTimeout = setTimeout(() => { clearBadgeCount(); }, 3000);
   }
 
-  // ============ FCM TOKEN ============
   async function requestFCMToken() {
     if (!currentUser) return;
     try {
       const permission = await Notification.requestPermission();
       if (permission === 'granted') {
-        // Register the service worker explicitly at the correct subdirectory path
-        const registration = await navigator.serviceWorker.register('firebase-messaging-sw.js', {
-          scope: './'
-        });
-        console.log('SW registered with scope:', registration.scope);
-
-        // Pass the registration to getToken so Firebase uses THIS worker
-        const token = await messaging.getToken({
-          vapidKey: VAPID_KEY,
-          serviceWorkerRegistration: registration
-        });
-
+        const token = await messaging.getToken({ vapidKey: VAPID_KEY });
         if (token) {
           await db.collection(`schools/${SCHOOL_ID}/staff`).doc(currentUser.uid).update({
             fcmToken: token,
             fcmTokenUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
           });
-          console.log('FCM Token saved.');
+          console.log('✅ FCM Token saved to Firestore.');
         }
       }
     } catch (error) {
@@ -347,7 +327,6 @@
     }
   });
 
-  // ============ CUSTOM MODALS ============
   function showConfirm({ title, message, detail, confirmText = 'Confirm', danger = false }) {
     return new Promise((resolve) => {
       const modal = document.getElementById('confirmModal');
@@ -394,15 +373,9 @@
   }
 
   function showInfo(message, title = 'SENwear') {
-    return showConfirm({
-      title: title,
-      message: message,
-      detail: '',
-      confirmText: 'OK'
-    });
+    return showConfirm({ title: title, message: message, detail: '', confirmText: 'OK' });
   }
 
-  // ============ AUTH ============
   document.getElementById('signInBtn').addEventListener('click', async () => {
     const email = document.getElementById('emailInput').value.trim();
     const pwd = document.getElementById('passwordInput').value;
@@ -414,7 +387,6 @@
       await auth.signInWithEmailAndPassword(email, pwd);
     } catch (err) {
       errBox.innerText = err.message;
-      console.error(err);
     }
   });
 
@@ -430,7 +402,6 @@
     } catch (err) {
       errBox.style.color = 'red';
       errBox.innerText = err.message;
-      console.error(err);
     }
   });
 
@@ -448,11 +419,9 @@
     mainApp.style.display = 'block';
     const staffRef = db.collection(`schools/${SCHOOL_ID}/staff`).doc(user.uid);
     let staffDoc;
-    try {
-      staffDoc = await staffRef.get();
-    } catch (err) {
-      console.error(err);
-      document.getElementById('authError').innerText = 'Permission error. Check your Firestore rules.';
+    try { staffDoc = await staffRef.get(); }
+    catch (err) {
+      document.getElementById('authError').innerText = 'Permission error. Check Firestore rules.';
       return;
     }
     if (staffDoc.exists) {
@@ -489,9 +458,10 @@
     loadStudents().then(() => { setupBloodHistory(); });
     startLiveFeed();
     scheduleBadgeClear();
+    // Auto-refresh FCM token on sign-in
+    setTimeout(() => { requestFCMToken(); }, 1500);
   }
 
-  // ============ PROFILE SETUP ============
   let selectedRole = null;
 
   function setupRoleButtons() {
@@ -511,27 +481,21 @@
     if (!currentUser) { status.innerText = 'No user session.'; return; }
     try {
       await db.collection(`schools/${SCHOOL_ID}/staff`).doc(currentUser.uid).set({
-        name: name,
-        role: selectedRole,
-        email: currentUser.email,
+        name: name, role: selectedRole, email: currentUser.email,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       currentUserRole = selectedRole;
       currentUserName = name;
       showMainApp();
-    } catch (err) {
-      status.innerText = 'Error saving profile: ' + err.message;
-    }
+    } catch (err) { status.innerText = 'Error saving profile: ' + err.message; }
   });
 
-  // ============ STUDENTS ============
   async function loadStudents() {
     const alertSelect = document.getElementById('studentSelect');
     const bloodSelect = document.getElementById('bloodStudentSelect');
     try {
       const snapshot = await db.collection(`schools/${SCHOOL_ID}/students`).get();
-      allStudents = [];
-      studentMap = {};
+      allStudents = []; studentMap = {};
       snapshot.forEach(doc => {
         const s = { id: doc.id, ...doc.data() };
         allStudents.push(s);
@@ -565,21 +529,17 @@
         </div>`;
       });
       studentListDiv.innerHTML = html || 'No students yet. Import CSV.';
-    } catch (err) {
-      console.error('Error loading students:', err);
-    }
+    } catch (err) {}
   }
 
   window.deleteStudent = async (studentId) => {
     if (!ADMIN_ROLES.includes(currentUserRole)) { await showInfo('Not authorised'); return; }
-    const reason = await showReasonInput({ title: `Delete student ${studentId}?`, placeholder: 'Reason (e.g., student left the school)' });
+    const reason = await showReasonInput({ title: `Delete student ${studentId}?`, placeholder: 'Reason' });
     if (!reason) return;
     const confirmed = await showConfirm({
-      title: 'Confirm delete',
-      message: `You are about to permanently delete ${studentId}.`,
-      detail: `<strong>Reason:</strong> ${escapeHtml(reason)}<br><br>⚠️ This cannot be undone.`,
-      confirmText: '🗑️ Delete Student',
-      danger: true
+      title: 'Confirm delete', message: `Delete ${studentId}?`,
+      detail: `<strong>Reason:</strong> ${escapeHtml(reason)}<br><br>⚠️ Cannot be undone.`,
+      confirmText: '🗑️ Delete', danger: true
     });
     if (!confirmed) return;
     try {
@@ -590,13 +550,9 @@
       });
       await loadStudents();
       await showInfo('Student deleted.');
-    } catch (err) {
-      console.error(err);
-      await showInfo('Failed to delete: ' + err.message);
-    }
+    } catch (err) { await showInfo('Failed: ' + err.message); }
   };
 
-  // ============ LIVE FEED ============
   let liveFeedUnsub = null;
 
   function startLiveFeed() {
@@ -614,11 +570,9 @@
       if (Date.now() - a.timestamp > ALERT_WINDOW_MS) return;
       alertsArray.push({ id: doc.id, data: a });
     });
-
     const seenIds = getSeenAlerts();
     const currentIds = alertsArray.map(a => a.id);
     setSeenAlerts([...new Set([...seenIds, ...currentIds])]);
-
     if (alertsArray.length === 0) { alertsDiv.innerHTML = 'No alerts yet'; return; }
     const showAll = document.getElementById('liveAlertsCard').dataset.showAll === 'true';
     const visible = showAll ? alertsArray : alertsArray.slice(0, LIVE_FEED_PREVIEW);
@@ -652,7 +606,7 @@
         html += `<button onclick="toggleShowAll(false)" style="background:#e2e8f0; color:#1e293b; margin-top:8px; width:100%;">▲ Show only latest ${LIVE_FEED_PREVIEW}</button>`;
       } else {
         const hidden = alertsArray.length - LIVE_FEED_PREVIEW;
-        html += `<button onclick="toggleShowAll(true)" style="background:#e2e8f0; color:#1e293b; margin-top:8px; width:100%;">▼ Show ${hidden} more alert${hidden > 1 ? 's' : ''}</button>`;
+        html += `<button onclick="toggleShowAll(true)" style="background:#e2e8f0; color:#1e293b; margin-top:8px; width:100%;">▼ Show ${hidden} more</button>`;
       }
     }
     alertsDiv.innerHTML = html;
@@ -662,34 +616,32 @@
   window.toggleShowAll = (show) => {
     document.getElementById('liveAlertsCard').dataset.showAll = show ? 'true' : 'false';
     db.collection(`schools/${SCHOOL_ID}/alerts`).orderBy('timestamp', 'desc').get()
-      .then(snap => renderLiveFeed(snap))
-      .catch(err => console.error('Toggle error:', err));
+      .then(snap => renderLiveFeed(snap));
   };
 
   window.acknowledgeAlert = async (id) => {
     try { await db.collection(`schools/${SCHOOL_ID}/alerts`).doc(id).update({ acknowledged: true }); }
-    catch (err) { console.error(err); }
+    catch (err) {}
   };
 
   window.unsendAlert = async (id) => {
-    const confirmed = await showConfirm({ title: 'Unsend alert?', message: 'This will remove the alert immediately. This cannot be undone.', detail: '', confirmText: '↩️ Unsend', danger: true });
+    const confirmed = await showConfirm({ title: 'Unsend alert?', message: 'Remove immediately?', detail: '', confirmText: '↩️ Unsend', danger: true });
     if (!confirmed) return;
     try { await db.collection(`schools/${SCHOOL_ID}/alerts`).doc(id).delete(); }
-    catch (err) { console.error(err); await showInfo('Failed to unsend: ' + err.message); }
+    catch (err) { await showInfo('Failed: ' + err.message); }
   };
 
   window.adminDeleteAlert = async (id) => {
-    const reason = await showReasonInput({ title: 'Delete alert', placeholder: 'Reason (e.g., sent about wrong student)' });
+    const reason = await showReasonInput({ title: 'Delete alert', placeholder: 'Reason' });
     if (!reason) return;
-    const confirmed = await showConfirm({ title: 'Confirm delete', message: 'This alert will be marked as deleted and hidden.', detail: `<strong>Reason:</strong> ${escapeHtml(reason)}`, confirmText: '🗑️ Delete', danger: true });
+    const confirmed = await showConfirm({ title: 'Confirm', message: 'Mark alert as deleted?', detail: `<strong>Reason:</strong> ${escapeHtml(reason)}`, confirmText: '🗑️ Delete', danger: true });
     if (!confirmed) return;
     try {
       await db.collection(`schools/${SCHOOL_ID}/alerts`).doc(id).update({ deleted: true, deletedBy: currentUserName, deletedByUid: currentUser.uid, deletedReason: reason, deletedAt: Date.now() });
       await db.collection(`schools/${SCHOOL_ID}/auditLog`).add({ action: 'DELETE_ALERT', target: id, reason: reason, performedBy: currentUserName, performedByUid: currentUser.uid, timestamp: Date.now() });
-    } catch (err) { console.error(err); await showInfo('Failed: ' + err.message); }
+    } catch (err) { await showInfo('Failed: ' + err.message); }
   };
 
-  // ============ SEND ALERT ============
   document.getElementById('sendAlertBtn').addEventListener('click', async () => {
     const studentSelect = document.getElementById('studentSelect');
     const studentId = studentSelect.value;
@@ -699,10 +651,9 @@
     if (!studentId || studentId === 'Select student') { await showInfo('Please select a student'); return; }
     if (!message) { await showInfo('Enter a message'); return; }
     const confirmed = await showConfirm({
-      title: 'Send alert?',
-      message: 'Please confirm the details below:',
+      title: 'Send alert?', message: 'Confirm details:',
       detail: `<strong>Student:</strong> ${escapeHtml(studentName)}<br><strong>Type:</strong> ${escapeHtml(type)}<br><strong>Message:</strong> ${escapeHtml(message)}`,
-      confirmText: '📢 Send Alert'
+      confirmText: '📢 Send'
     });
     if (!confirmed) return;
     try {
@@ -714,10 +665,9 @@
       document.getElementById('message').value = '';
       document.getElementById('sendStatus').innerHTML = '✅ Alert sent';
       setTimeout(() => document.getElementById('sendStatus').innerHTML = '', 2000);
-    } catch (err) { console.error(err); await showInfo('Failed to send alert: ' + err.message); }
+    } catch (err) { await showInfo('Failed: ' + err.message); }
   });
 
-  // ============ BLOOD GLUCOSE ============
   document.getElementById('saveBloodBtn').addEventListener('click', async () => {
     const bloodSelect = document.getElementById('bloodStudentSelect');
     const studentId = bloodSelect.value;
@@ -726,7 +676,7 @@
     const notes = document.getElementById('bloodNotes').value.trim();
     if (!studentId || studentId === 'Select student') { await showInfo('Select a student'); return; }
     if (isNaN(reading)) { await showInfo('Enter a valid number'); return; }
-    if (reading < 1 || reading > 40) { await showInfo('Reading looks unusual. Please check.'); return; }
+    if (reading < 1 || reading > 40) { await showInfo('Reading looks unusual.'); return; }
     try {
       await db.collection(`schools/${SCHOOL_ID}/bloodLogs`).add({
         student: studentName, studentId: studentId, reading: reading, notes: notes,
@@ -736,10 +686,9 @@
       document.getElementById('bloodReading').value = '';
       document.getElementById('bloodNotes').value = '';
       setTimeout(() => document.getElementById('bloodStatus').innerHTML = '', 2000);
-    } catch (err) { console.error(err); await showInfo('Failed to save reading: ' + err.message); }
+    } catch (err) { await showInfo('Failed: ' + err.message); }
   });
 
-  // ============ BLOOD HISTORY ============
   let bloodHistoryUnsub = null;
   let bloodHistoryStudent = '';
 
@@ -792,7 +741,7 @@
         </div>`;
       });
       listDiv.innerHTML = html;
-    }, err => { console.error(err); listDiv.innerHTML = '<div style="padding:12px; color:#dc2626;">Failed to load readings</div>'; });
+    }, err => { listDiv.innerHTML = '<div style="padding:12px; color:#dc2626;">Failed to load</div>'; });
   }
 
   window.jumpToBloodHistory = (studentId) => {
@@ -807,7 +756,6 @@
     loadBloodHistory();
   };
 
-  // ============ HOVER SNAPSHOT ============
   let hoverTimeout;
   const hoverCard = document.getElementById('hoverCard');
 
@@ -842,7 +790,6 @@
     });
   }
 
-  // ============ CSV IMPORT ============
   document.getElementById('csvToggle').onclick = () => {
     const csvDiv = document.getElementById('csvContent');
     csvDiv.style.display = csvDiv.style.display === 'none' ? 'block' : 'none';
@@ -856,8 +803,7 @@
       header: true, skipEmptyLines: true,
       complete: async (results) => {
         const students = results.data;
-        let success = 0;
-        let errors = [];
+        let success = 0, errors = [];
         for (const student of students) {
           if (!student.initials) { errors.push('Missing initials'); continue; }
           ['medicalFlags', 'triggers', 'strategies', 'keyStaff', 'typicalLocations'].forEach(f => {
@@ -871,15 +817,13 @@
             success++;
           } catch(err) { errors.push(`${student.initials}: ${err.message}`); }
         }
-        document.getElementById('importStatus').innerHTML = `✅ Imported ${success} students` + (errors.length ? `<br>⚠️ ${errors.length} issues` : '');
+        document.getElementById('importStatus').innerHTML = `✅ Imported ${success}` + (errors.length ? `<br>⚠️ ${errors.length} issues` : '');
         await loadStudents();
         setupBloodHistory();
-      },
-      error: (err) => { document.getElementById('importStatus').innerHTML = '❌ Error parsing CSV'; console.error(err); }
+      }
     });
   });
 
-  // ============ DATA EXPORT ============
   function arrayToCsv(rows) {
     if (!rows.length) return '';
     const headers = Object.keys(rows[0]);
@@ -908,7 +852,7 @@
     const snap = await db.collection(`schools/${SCHOOL_ID}/students`).get();
     const rows = []; snap.forEach(doc => rows.push({ id: doc.id, ...doc.data() }));
     downloadCsv('senwear-students.csv', arrayToCsv(rows));
-    document.getElementById('exportStatus').innerText = '✅ Students exported';
+    document.getElementById('exportStatus').innerText = '✅ Exported';
   });
 
   document.getElementById('exportAlertsBtn').addEventListener('click', async () => {
@@ -916,7 +860,7 @@
     const snap = await db.collection(`schools/${SCHOOL_ID}/alerts`).orderBy('timestamp', 'desc').get();
     const rows = []; snap.forEach(doc => rows.push({ id: doc.id, ...doc.data() }));
     downloadCsv('senwear-alerts.csv', arrayToCsv(rows));
-    document.getElementById('exportStatus').innerText = '✅ Alerts exported';
+    document.getElementById('exportStatus').innerText = '✅ Exported';
   });
 
   document.getElementById('exportBloodBtn').addEventListener('click', async () => {
@@ -924,15 +868,13 @@
     const snap = await db.collection(`schools/${SCHOOL_ID}/bloodLogs`).orderBy('timestamp', 'desc').get();
     const rows = []; snap.forEach(doc => rows.push({ id: doc.id, ...doc.data() }));
     downloadCsv('senwear-bloodlogs.csv', arrayToCsv(rows));
-    document.getElementById('exportStatus').innerText = '✅ Blood logs exported';
+    document.getElementById('exportStatus').innerText = '✅ Exported';
   });
 
-  // ============ FEEDBACK ============
   document.getElementById('feedbackButton').addEventListener('click', () => {
     window.open('https://forms.gle/your-feedback-link-here', '_blank');
   });
 
-  // ============ ESCAPE HTML ============
   function escapeHtml(str) {
     if (str === null || str === undefined) return '';
     return String(str).replace(/[&<>"']/g, function(m) {
@@ -945,17 +887,11 @@
     });
   }
 
-  // ============ BADGE ON FOCUS ============
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      scheduleBadgeClear();
-    }
+    if (document.visibilityState === 'visible') scheduleBadgeClear();
   });
-  window.addEventListener('focus', () => {
-    scheduleBadgeClear();
-  });
+  window.addEventListener('focus', () => { scheduleBadgeClear(); });
 
-  // ============ SERVICE WORKER ============
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('firebase-messaging-sw.js')
       .then(() => console.log('FCM SW registered'))
