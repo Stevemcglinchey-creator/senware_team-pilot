@@ -40,12 +40,9 @@ async function incrementBadge() {
         self.navigator.setAppBadge(newCount).catch(() => {});
       }
     };
-  } catch (e) {
-    console.error('Badge update failed:', e);
-  }
+  } catch (e) {}
 }
 
-// FCM auto-displays the notification. We only increment the badge here.
 messaging.onBackgroundMessage((payload) => {
   console.log('[SENwear SW] Background push received:', payload);
   incrementBadge();
