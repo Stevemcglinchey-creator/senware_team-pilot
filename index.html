@@ -59,6 +59,9 @@
     .btn-primary { background: #1a5f4c; color: white; }
     .btn-secondary { background: #e2e8f0; color: #1e293b; }
     .btn-danger { background: #dc2626; color: white; }
+    .access-pending { text-align: center; padding: 28px 20px; }
+    .access-pending h2 { color: #1a5f4c; margin-bottom: 12px; }
+    .access-pending p { color: #475569; line-height: 1.5; margin-bottom: 10px; }
   </style>
 </head>
 <body>
@@ -88,23 +91,11 @@
     <button id="enableNotifBtn">Enable</button>
   </div>
 
-  <div class="card" id="profileCard" style="display:none;">
-    <h2>👤 Your profile</h2>
-    <div class="form-group">
-      <label>Your role</label>
-      <div id="roleGroup" style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button type="button" class="role-option" data-role="SNA">SNA</button>
-        <button type="button" class="role-option" data-role="VP">VP</button>
-        <button type="button" class="role-option" data-role="SENCO">SENCO</button>
-        <button type="button" class="role-option" data-role="Principal">Principal</button>
-      </div>
-    </div>
-    <div class="form-group">
-      <label>Your name</label>
-      <input type="text" id="staffName" placeholder="e.g., Kelly">
-    </div>
-    <button id="saveProfileBtn">Save profile</button>
-    <div id="profileStatus"></div>
+  <div class="card access-pending" id="profileCard" style="display:none;">
+    <h2>🔒 Access Pending</h2>
+    <p>This account is not authorised to access SENwear.</p>
+    <p>Please contact your SENwear administrator to have access approved.</p>
+    <button id="pendingSignOutBtn" class="logout-btn" style="margin-top:12px;">🚪 Sign Out</button>
   </div>
 
   <div class="card" id="alertCard" style="display:none;">
@@ -429,7 +420,7 @@
       currentUserName = staffDoc.data().name;
       showMainApp();
     } else {
-      showProfileSetup();
+      showAccessPending();
     }
   });
 
@@ -438,11 +429,14 @@
       .forEach(id => document.getElementById(id).style.display = 'none');
   }
 
-  function showProfileSetup() {
+  function showAccessPending() {
     hideAllCards();
+    currentUserRole = null;
+    currentUserName = null;
     document.getElementById('profileCard').style.display = 'block';
-    setupRoleButtons();
   }
+
+  document.getElementById('pendingSignOutBtn').addEventListener('click', () => auth.signOut());
 
   function showMainApp() {
     hideAllCards();
@@ -461,34 +455,6 @@
     // Auto-refresh FCM token on sign-in
     setTimeout(() => { requestFCMToken(); }, 1500);
   }
-
-  let selectedRole = null;
-
-  function setupRoleButtons() {
-    document.querySelectorAll('.role-option').forEach(btn => {
-      btn.onclick = () => {
-        document.querySelectorAll('.role-option').forEach(b => b.classList.remove('selected'));
-        btn.classList.add('selected');
-        selectedRole = btn.getAttribute('data-role');
-      };
-    });
-  }
-
-  document.getElementById('saveProfileBtn').addEventListener('click', async () => {
-    const name = document.getElementById('staffName').value.trim();
-    const status = document.getElementById('profileStatus');
-    if (!selectedRole || !name) { status.innerText = 'Role and name required'; return; }
-    if (!currentUser) { status.innerText = 'No user session.'; return; }
-    try {
-      await db.collection(`schools/${SCHOOL_ID}/staff`).doc(currentUser.uid).set({
-        name: name, role: selectedRole, email: currentUser.email,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      currentUserRole = selectedRole;
-      currentUserName = name;
-      showMainApp();
-    } catch (err) { status.innerText = 'Error saving profile: ' + err.message; }
-  });
 
   async function loadStudents() {
     const alertSelect = document.getElementById('studentSelect');
