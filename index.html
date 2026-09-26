@@ -101,17 +101,17 @@
   <div class="card" id="alertCard" style="display:none;">
     <h2>⚡ Quick Alert</h2>
     <div class="form-group">
-      <label>Student</label>
+      <label for="studentSelect">Student</label>
       <select id="studentSelect"><option>Select student</option></select>
     </div>
     <div class="form-group">
-      <label>Alert type</label>
+      <label for="type">Alert type</label>
       <select id="type">
         <option>Health</option><option>Behaviour</option><option>Attendance</option><option>Academic</option>
       </select>
     </div>
     <div class="form-group">
-      <label>Message</label>
+      <label for="message">Message</label>
       <textarea id="message" rows="2" placeholder="What's happening?"></textarea>
     </div>
     <button id="sendAlertBtn">📢 Send Alert</button>
@@ -126,15 +126,15 @@
   <div class="card" id="bloodCard" style="display:none;">
     <h2>🩸 New Blood Reading</h2>
     <div class="form-group">
-      <label>Student (Type 1 only)</label>
+      <label for="bloodStudentSelect">Student (Type 1 only)</label>
       <select id="bloodStudentSelect"><option>Select student</option></select>
     </div>
     <div class="form-group">
-      <label>Reading (mmol/L)</label>
+      <label for="bloodReading">Reading (mmol/L)</label>
       <input type="text" id="bloodReading" placeholder="e.g., 5.2">
     </div>
     <div class="form-group">
-      <label>Notes (optional)</label>
+      <label for="bloodNotes">Notes (optional)</label>
       <input type="text" id="bloodNotes" placeholder="e.g., Before lunch">
     </div>
     <button id="saveBloodBtn" class="blood-btn">💾 Save Reading</button>
@@ -395,7 +395,8 @@
     try {
       await auth.signInWithEmailAndPassword(email, pwd);
     } catch (err) {
-      errBox.innerText = err.message;
+      console.error('Sign-in failed:', err.code);
+      errBox.innerText = 'Sign-in failed. Check your email and password and try again.';
     }
   });
 
@@ -504,8 +505,8 @@
       allStudents.forEach(s => {
         html += `<div class="student-item">
           <strong>${escapeHtml(s.initials)}</strong> · ${escapeHtml(s.year || '')}
-          <br>🏥 ${(s.medicalFlags || []).join(', ') || 'None'}
-          <br>🛡️ ${(s.strategies || []).join(', ') || 'None'}
+          <br>🏥 ${escapeHtml((s.medicalFlags || []).join(', ') || 'None')}
+          <br>🛡️ ${escapeHtml((s.strategies || []).join(', ') || 'None')}
           <div style="display:flex; gap:6px; margin-top:8px; flex-wrap:wrap;">
             ${s.bloodGlucoseRequired ? `<button onclick="jumpToBloodHistory('${s.id}')" style="background:#3b82f6; color:white; padding:6px 12px; font-size:0.75rem; width:auto; margin:0;">🩸 View readings</button>` : ''}
             ${ADMIN_ROLES.includes(currentUserRole) ? `<button onclick="deleteStudent('${s.id}')" style="background:#fee2e2; color:#b91c1c; padding:6px 12px; font-size:0.75rem; width:auto; margin:0;">🗑️ Delete</button>` : ''}
@@ -803,10 +804,10 @@
     if (!data) return;
     hoverCard.innerHTML = `
       <h4>${escapeHtml(data.fullName || data.initials)}</h4>
-      <p><strong>🩺 Medical:</strong> ${(data.medicalFlags || []).join(', ') || 'None'}</p>
-      <p><strong>⚠️ Triggers:</strong> ${(data.triggers || []).join(', ') || 'None'}</p>
-      <p><strong>✅ Strategies:</strong> ${(data.strategies || []).join(', ') || 'None'}</p>
-      <p><strong>👥 Key staff:</strong> ${(data.keyStaff || []).join(', ') || 'None'}</p>
+      <p><strong>🩺 Medical:</strong> ${escapeHtml((data.medicalFlags || []).join(', ') || 'None')}</p>
+      <p><strong>⚠️ Triggers:</strong> ${escapeHtml((data.triggers || []).join(', ') || 'None')}</p>
+      <p><strong>✅ Strategies:</strong> ${escapeHtml((data.strategies || []).join(', ') || 'None')}</p>
+      <p><strong>👥 Key staff:</strong> ${escapeHtml((data.keyStaff || []).join(', ') || 'None')}</p>
     `;
     hoverCard.style.display = 'block';
     const rect = event.target.getBoundingClientRect();
@@ -843,18 +844,26 @@
       complete: async (results) => {
         const students = results.data;
         let success = 0, errors = [];
-        for (const student of students) {
-          if (!student.initials) { errors.push('Missing initials'); continue; }
-          ['medicalFlags', 'triggers', 'strategies', 'keyStaff', 'typicalLocations'].forEach(f => {
-            if (student[f] && typeof student[f] === 'string') {
-              student[f] = student[f].split(',').map(s => s.trim()).filter(s => s);
-            } else { student[f] = []; }
-          });
-          student.bloodGlucoseRequired = student.bloodGlucoseRequired === 'TRUE' || student.bloodGlucoseRequired === 'true';
+        const cleanText = (value, max) => String(value || '').trim().slice(0, max);
+        const cleanList = (value) => String(value || '').split(',').map(v => cleanText(v, 150)).filter(Boolean).slice(0, 20);
+        for (const row of students) {
+          const initials = cleanText(row.initials, 30);
+          if (!initials || !/^[A-Za-z0-9 .'-]+$/.test(initials)) { errors.push('Invalid or missing initials'); continue; }
+          const student = {
+            initials,
+            fullName: cleanText(row.fullName, 100),
+            year: cleanText(row.year, 30),
+            medicalFlags: cleanList(row.medicalFlags),
+            triggers: cleanList(row.triggers),
+            strategies: cleanList(row.strategies),
+            keyStaff: cleanList(row.keyStaff),
+            typicalLocations: cleanList(row.typicalLocations),
+            bloodGlucoseRequired: /^(true|yes|1)$/i.test(String(row.bloodGlucoseRequired || '').trim())
+          };
           try {
-            await db.collection(`schools/${SCHOOL_ID}/students`).doc(student.initials).set(student, { merge: true });
+            await db.collection(`schools/${SCHOOL_ID}/students`).doc(initials).set(student);
             success++;
-          } catch(err) { errors.push(`${student.initials}: ${err.message}`); }
+          } catch(err) { errors.push(`${initials}: ${err.message}`); }
         }
         document.getElementById('importStatus').innerHTML = `✅ Imported ${success}` + (errors.length ? `<br>⚠️ ${errors.length} issues` : '');
         await loadStudents();
@@ -868,7 +877,9 @@
     const headers = Object.keys(rows[0]);
     const escape = (v) => {
       if (v === null || v === undefined) return '';
-      const s = Array.isArray(v) ? v.join('|') : String(v);
+      let s = Array.isArray(v) ? v.join('|') : String(v);
+      // Prevent spreadsheet formula injection when exported CSV is opened in Excel/Sheets.
+      if (/^[=+\-@]/.test(s.trimStart())) s = "'" + s;
       return `"${s.replace(/"/g, '""')}"`;
     };
     const lines = [headers.join(',')];
