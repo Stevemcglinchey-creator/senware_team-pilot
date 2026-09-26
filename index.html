@@ -68,9 +68,11 @@
 
 <div id="authContainer" class="auth-container">
   <h2>🔐 SENwear</h2>
-  <div id="authError" style="color:red; margin-bottom:12px;"></div>
-  <input type="email" id="emailInput" placeholder="School email">
-  <input type="password" id="passwordInput" placeholder="Password">
+  <div id="authError" role="status" aria-live="polite" style="color:red; margin-bottom:12px;"></div>
+  <label for="emailInput">School email</label>
+  <input type="email" id="emailInput" placeholder="School email" autocomplete="username">
+  <label for="passwordInput">Password</label>
+  <input type="password" id="passwordInput" placeholder="Password" autocomplete="current-password">
   <button id="signInBtn">Sign In</button>
   <button id="forgotPasswordBtn" class="link-btn">Forgot password?</button>
   <p style="text-align:center; font-size:0.8rem; color:#94a3b8; margin-top:16px;">
@@ -115,7 +117,7 @@
       <textarea id="message" rows="2" placeholder="What's happening?"></textarea>
     </div>
     <button id="sendAlertBtn">📢 Send Alert</button>
-    <div id="sendStatus" class="status-msg"></div>
+    <div id="sendStatus" class="status-msg" role="status" aria-live="polite"></div>
   </div>
 
   <div class="card" id="liveAlertsCard" style="display:none;">
@@ -138,23 +140,23 @@
       <input type="text" id="bloodNotes" placeholder="e.g., Before lunch">
     </div>
     <button id="saveBloodBtn" class="blood-btn">💾 Save Reading</button>
-    <div id="bloodStatus" class="status-msg"></div>
+    <div id="bloodStatus" class="status-msg" role="status" aria-live="polite"></div>
   </div>
 
   <div class="blood-history-card" id="bloodHistoryCard" style="display:none;">
-    <div class="blood-history-header" id="bloodHistoryHeader">
+    <div class="blood-history-header" id="bloodHistoryHeader" role="button" tabindex="0" aria-expanded="false" aria-controls="bloodHistoryContent">
       <span>🩸 Blood Glucose History</span><span>▼</span>
     </div>
     <div class="blood-history-content" id="bloodHistoryContent"></div>
   </div>
 
   <div class="card" id="studentManagementCard" style="display:none;">
-    <div id="csvToggle" style="background:#1a5f4c; color:white; padding:12px; border-radius:40px; text-align:center; cursor:pointer;">📁 Student Management ▶</div>
+    <div id="csvToggle" role="button" tabindex="0" aria-expanded="false" aria-controls="csvContent" style="background:#1a5f4c; color:white; padding:12px; border-radius:40px; text-align:center; cursor:pointer;">📁 Student Management ▶</div>
     <div id="csvContent" style="display:none; margin-top:16px;">
       <p style="font-size:0.85rem;">Upload CSV: initials, fullName, year, medicalFlags, triggers, strategies, keyStaff, typicalLocations, bloodGlucoseRequired</p>
       <input type="file" id="csvFile" accept=".csv">
       <button id="importBtn" style="background:#64748b;">Import Students</button>
-      <div id="importStatus"></div>
+      <div id="importStatus" role="status" aria-live="polite"></div>
       <hr style="margin:16px 0;">
       <h3>👥 Students</h3>
       <div id="studentList">No students yet.</div>
@@ -163,7 +165,7 @@
       <button id="exportStudentsBtn" style="background:#3b82f6;">Export Students (CSV)</button>
       <button id="exportAlertsBtn" style="background:#3b82f6; margin-top:8px;">Export Alerts (CSV)</button>
       <button id="exportBloodBtn" style="background:#3b82f6; margin-top:8px;">Export Blood Logs (CSV)</button>
-      <div id="exportStatus"></div>
+      <div id="exportStatus" role="status" aria-live="polite"></div>
     </div>
   </div>
 
@@ -746,6 +748,7 @@
     header.onclick = () => {
       const isOpen = content.classList.contains('show');
       content.classList.toggle('show');
+      header.setAttribute('aria-expanded', String(!isOpen));
       header.querySelector('span:last-child').textContent = isOpen ? '▼' : '▲';
       if (!isOpen) loadBloodHistory();
     };
@@ -830,10 +833,15 @@
     });
   }
 
-  document.getElementById('csvToggle').onclick = () => {
+  const csvToggle = document.getElementById('csvToggle');
+  csvToggle.onclick = () => {
     const csvDiv = document.getElementById('csvContent');
-    csvDiv.style.display = csvDiv.style.display === 'none' ? 'block' : 'none';
+    const opening = csvDiv.style.display === 'none';
+    csvDiv.style.display = opening ? 'block' : 'none';
+    csvToggle.setAttribute('aria-expanded', String(opening));
   };
+  csvToggle.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); csvToggle.click(); } };
+  document.getElementById('bloodHistoryHeader').onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); } };
 
   document.getElementById('importBtn').addEventListener('click', () => {
     if (!ADMIN_ROLES.includes(currentUserRole)) { showInfo('Not authorised'); return; }
