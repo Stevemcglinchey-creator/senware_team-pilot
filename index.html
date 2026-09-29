@@ -557,11 +557,21 @@
     });
     if (!confirmed) return;
     try {
-      await db.collection(`schools/${SCHOOL_ID}/students`).doc(studentId).delete();
-      await db.collection(`schools/${SCHOOL_ID}/auditLog`).add({
-        action: 'DELETE_STUDENT', target: studentId, reason: reason,
-        performedBy: currentUserName, performedByUid: currentUser.uid, timestamp: Date.now()
+      const batch = db.batch();
+      const studentRef = db.collection(`schools/${SCHOOL_ID}/students`).doc(studentId);
+      const auditRef = db.collection(`schools/${SCHOOL_ID}/auditLog`).doc();
+
+      batch.delete(studentRef);
+      batch.set(auditRef, {
+        action: 'DELETE_STUDENT',
+        target: studentId,
+        reason: reason,
+        performedBy: currentUserName,
+        performedByUid: currentUser.uid,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
       });
+
+      await batch.commit();
       await loadStudents();
       await showInfo('Student deleted.');
     } catch (err) { await showInfo('Failed: ' + err.message); }
