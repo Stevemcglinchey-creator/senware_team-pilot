@@ -52,6 +52,16 @@
   const studentId = urlParams.get('studentId');
 
   firebase.initializeApp(firebaseConfig);
+
+  // Firebase App Check — reCAPTCHA Enterprise
+  const appCheck = firebase.appCheck();
+  appCheck.activate(
+    new firebase.appCheck.ReCaptchaEnterpriseProvider(
+      '6LdR0c0tAAAAAGeusnJYQBpLc-6ODDsRveOAuBih'
+    ),
+    true
+  );
+
   const auth = firebase.auth();
   const db = firebase.firestore();
 
