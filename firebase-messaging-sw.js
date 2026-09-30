@@ -46,6 +46,18 @@ async function incrementBadge() {
 messaging.onBackgroundMessage((payload) => {
   console.log('[SENwear SW] Background push received:', payload);
   incrementBadge();
+
+  const title = payload.notification?.title || 'SENwear';
+  const options = {
+    body: payload.notification?.body || 'New SENwear alert',
+    icon: './icon-192.png',
+    badge: './icon-192.png',
+    data: payload.data || {}
+  };
+
+  self.registration.showNotification(title, options).catch((error) => {
+    console.error('[SENwear SW] Failed to show background notification:', error);
+  });
 });
 
 self.addEventListener('notificationclick', (event) => {
