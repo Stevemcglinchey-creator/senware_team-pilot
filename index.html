@@ -1014,7 +1014,26 @@
   document.getElementById('exportBloodBtn').addEventListener('click', async () => {
     if (!ADMIN_ROLES.includes(currentUserRole)) return;
     const snap = await db.collection(`schools/${SCHOOL_ID}/bloodLogs`).orderBy('timestamp', 'desc').get();
-    const rows = []; snap.forEach(doc => rows.push({ id: doc.id, ...doc.data() }));
+    const rows = [];
+    snap.forEach(doc => {
+      const data = doc.data();
+      rows.push({
+        id: doc.id,
+        student: data.student || '',
+        studentId: data.studentId || '',
+        reading: data.reading,
+        notes: data.notes || '',
+        recordedBy: data.recordedBy || '',
+        recordedByUid: data.recordedByUid || '',
+        timestamp: data.timestamp?.toDate ? data.timestamp.toDate().toISOString() : '',
+        type: data.type || '',
+        status: data.corrected === true ? 'INCORRECT ENTRY' : 'VALID',
+        correctionReason: data.correctionReason || '',
+        correctedBy: data.correctedBy || '',
+        correctedByUid: data.correctedByUid || '',
+        correctedAt: data.correctedAt?.toDate ? data.correctedAt.toDate().toISOString() : ''
+      });
+    });
     downloadCsv('senwear-bloodlogs.csv', arrayToCsv(rows));
     document.getElementById('exportStatus').innerText = '✅ Exported';
   });
